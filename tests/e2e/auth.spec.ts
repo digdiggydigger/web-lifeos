@@ -44,3 +44,12 @@ test('a wrong password says so without leaving the page', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText("don't match");
   await expect(page).toHaveURL(/\/login$/);
 });
+
+test('a brand-new account sees its six seeded life areas on Today', async ({ page }) => {
+  const { signUpAndEnter } = await import('./support');
+  await signUpAndEnter(page, 'seeded');
+  const section = page.getByRole('region', { name: 'Life areas' });
+  for (const name of ['Health', 'Work', 'Home', 'Money', 'Relationships', 'Growth']) {
+    await expect(section.getByText(name, { exact: true })).toBeVisible();
+  }
+});

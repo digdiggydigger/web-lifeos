@@ -4,6 +4,8 @@ import { Link } from 'react-router';
 import { EmptyState } from '@/shared/EmptyState';
 import { PageHeader } from '@/shared/PageHeader';
 
+import { LifeAreasCard } from './LifeAreasCard';
+
 export function TodayPage() {
   return (
     <>
@@ -28,6 +30,7 @@ export function TodayPage() {
           </Link>
         }
       />
+      <LifeAreasCard />
     </>
   );
 }
