@@ -31,6 +31,8 @@ import { SectionLabel } from '@/shared/SectionLabel';
 import { CaptureRowSummary, TagChips } from './CaptureBits';
 import { PromoteSheet } from './PromoteSheet';
 import { QuickCaptureDialog } from './QuickCaptureDialog';
+import { preferencesStore } from '@/features/settings/preferencesStore';
+
 import { useCaptureInbox, useCaptureStores } from './useCaptureStores';
 
 const areaChip = (selected: boolean) =>
@@ -52,6 +54,7 @@ export function CapturesPage() {
   const weekLine = useStore(store, (s) => s.weekCounterweightLine);
   const health = useStore(store, (s) => s.weekHealth);
   const undoCount = useStore(store, (s) => s.triageUndoCount);
+  const showCharts = useStore(preferencesStore, (s) => s.preferences.showCharts);
   const [lifeAreas, setLifeAreas] = useState<readonly LifeArea[]>([]);
   const [allTags, setAllTags] = useState<readonly Tag[]>([]);
   const [staged, setStaged] = useState<StagedSelection | undefined>(undefined);
@@ -372,7 +375,7 @@ export function CapturesPage() {
               </ul>
             </section>
           ) : null}
-          {filter === 'unprocessed' && health ? (
+          {filter === 'unprocessed' && health && showCharts ? (
             <section aria-label="Inbox health">
               <SectionLabel className="mb-2 text-accent">Inbox health</SectionLabel>
               <Card className="flex flex-col gap-2">

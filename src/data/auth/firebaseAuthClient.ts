@@ -1,7 +1,10 @@
 /** The Firebase implementation of `AuthClient` (the iOS `FirebaseAuthClientAdapter` + `FirebaseManager` auth half). */
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
+  EmailAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -9,10 +12,13 @@ import {
 } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 
+import { RecentLoginRequiredError } from '@/domain/settings/accountDeletion';
+
 import { firebase } from '../firebase';
 import { ensureProfile } from '../repos/profileRepo';
 import { seedDefaultContentIfNeeded } from '../seed';
 import type { AuthClient, AuthUser } from './authClient';
+import { isRecentLoginRequired } from './authErrors';
 
 function project(user: User, displayName?: string): AuthUser {
   const result: { uid: string; email?: string; displayName?: string } = { uid: user.uid };
@@ -85,5 +91,28 @@ export class FirebaseAuthClient implements AuthClient {
 
   async signOut(): Promise<void> {
     await firebaseSignOut(firebase().auth);
+  }
+
+  reauthMethod(): 'password' | 'apple' | undefined {
+    const user = firebase().auth.currentUser;
+    if (!user) return undefined;
+    return user.providerData.some((p) => p.providerId === 'apple.com') ? 'apple' : 'password';
+  }
+
+  async reauthenticateWithPassword(password: string): Promise<void> {
+    const user = firebase().auth.currentUser;
+    if (!user?.email) throw new Error('Not signed in.');
+    await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  }
+
+  async deleteAuthUser(): Promise<void> {
+    const user = firebase().auth.currentUser;
+    if (!user) throw new Error('Not signed in.');
+    try {
+      await deleteUser(user);
+    } catch (error) {
+      if (isRecentLoginRequired(error)) throw new RecentLoginRequiredError();
+      throw error;
+    }
   }
 }

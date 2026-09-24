@@ -47,6 +47,15 @@ class FakeAuthClient implements AuthClient {
     this.signedOut += 1;
     return Promise.resolve();
   }
+  reauthMethod() {
+    return 'password' as const;
+  }
+  reauthenticateWithPassword(): Promise<void> {
+    return Promise.resolve();
+  }
+  deleteAuthUser(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 function make(client = new FakeAuthClient()) {

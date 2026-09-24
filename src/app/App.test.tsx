@@ -21,6 +21,9 @@ class StubAuthClient implements AuthClient {
   sendPasswordReset = () => Promise.resolve();
   updateDisplayName = () => Promise.reject(new Error('not in this test'));
   signOut = () => Promise.resolve();
+  reauthMethod = () => 'password' as const;
+  reauthenticateWithPassword = () => Promise.resolve();
+  deleteAuthUser = () => Promise.resolve();
 }
 
 function renderAt(path: string, user: AuthUser | null = { uid: 'U1', email: 'e@example.com' }) {

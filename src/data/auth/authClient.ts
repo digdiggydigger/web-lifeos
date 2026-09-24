@@ -14,4 +14,9 @@ export interface AuthClient {
   sendPasswordReset(email: string): Promise<void>;
   updateDisplayName(displayName: string | undefined): Promise<AuthUser>;
   signOut(): Promise<void>;
+  /** `accountReauthMethod`: which credential a recent-login demand can be met with; undefined when signed out. */
+  reauthMethod(): 'password' | 'apple' | undefined;
+  reauthenticateWithPassword(password: string): Promise<void>;
+  /** Throws `RecentLoginRequiredError` when Firebase demands a fresh sign-in first. */
+  deleteAuthUser(): Promise<void>;
 }

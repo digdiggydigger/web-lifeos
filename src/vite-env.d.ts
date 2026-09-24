@@ -8,7 +8,12 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID?: string;
   readonly VITE_FIREBASE_APP_ID?: string;
   readonly VITE_USE_EMULATORS?: string;
+  /** Set by CI to the short commit SHA; the About row's build number. */
+  readonly VITE_BUILD?: string;
 }
+
+/** package.json's version, inlined by Vite's `define`. */
+declare const __APP_VERSION__: string;
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;

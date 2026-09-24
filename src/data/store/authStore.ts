@@ -28,6 +28,8 @@ export interface AuthState {
   readonly sendPasswordReset: (email: string) => Promise<void>;
   readonly updateDisplayName: (raw: string) => Promise<boolean>;
   readonly signOut: () => Promise<void>;
+  /** Hand-off from a completed deletion: the user no longer exists, so no sign-out call; only local state. */
+  readonly completeAccountDeletion: () => void;
   readonly clearTransientMessages: () => void;
 }
 
@@ -105,6 +107,10 @@ export function createAuthStore(client: AuthClient): AuthStore {
           await client.signOut();
           set({ status: { kind: 'signedOut' } });
         }),
+
+      completeAccountDeletion: () => {
+        set({ ...clear, status: { kind: 'signedOut' } });
+      },
 
       clearTransientMessages: () => {
         set(clear);

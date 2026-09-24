@@ -15,6 +15,7 @@ import type { TaskEditedFields } from '@/domain/tasks';
 import { formatAbbreviatedDate } from '@/domain/time/calendar';
 import { TASK_PRIORITIES } from '@/domain/types';
 import type { LifeArea, Task, TaskPriority } from '@/domain/types';
+import { preferencesStore } from '@/features/settings/preferencesStore';
 import { recentActionStore } from '@/features/undo/recentActionStore';
 import { Card } from '@/shared/Card';
 import { EmptyState } from '@/shared/EmptyState';
@@ -27,7 +28,6 @@ import { useTaskClients } from './useTaskClients';
 
 const fieldClass =
   'min-h-11 w-full rounded-card border border-card-border bg-card-surface-secondary px-4 py-2 text-base';
-const SHOW_STREAKS = true;
 
 function without<K extends keyof TaskEditedFields>(
   fields: TaskEditedFields,
@@ -50,6 +50,7 @@ export function TaskDetailPage() {
   const errorMessage = useStore(store, (s) => s.errorMessage);
   const warningMessage = useStore(store, (s) => s.warningMessage);
   const defaultSprintSeconds = useStore(store, (s) => s.defaultSprintSeconds);
+  const showStreaks = useStore(preferencesStore, (s) => s.preferences.showStreaks);
 
   const [edited, setEdited] = useState<TaskEditedFields | undefined>(undefined);
   const [context, setContext] = useState<{ tasks: Task[]; lifeAreas: LifeArea[] }>({
@@ -125,7 +126,7 @@ export function TaskDetailPage() {
     lifeAreaId: task.lifeAreaId,
     tasks: context.tasks,
     lifeAreas: context.lifeAreas,
-    showStreaks: SHOW_STREAKS,
+    showStreaks: showStreaks,
     now,
   });
   const area = context.lifeAreas.find((a) => a.id === edited.lifeAreaId);

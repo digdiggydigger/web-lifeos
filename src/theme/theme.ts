@@ -24,6 +24,18 @@ export function appearanceLabel(appearance: Appearance): string {
   }
 }
 
+/** `AppearancePreference.explanation`: the footer under the picker. */
+export function appearanceExplanation(appearance: Appearance): string {
+  switch (appearance) {
+    case 'system':
+      return 'Follows your device. The palette carries light and dark variants for every token.';
+    case 'light':
+      return 'Light for daylight. Area colours darken so labels stay readable.';
+    case 'dark':
+      return 'Dark by default — the closure green reads brightest against it.';
+  }
+}
+
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 function defaultStorage(): StorageLike | undefined {
