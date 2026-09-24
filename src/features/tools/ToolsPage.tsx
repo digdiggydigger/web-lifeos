@@ -1,4 +1,4 @@
-import { ChevronRight, Tag, Trash2 } from 'lucide-react';
+import { ChevronRight, LayoutGrid, MapPin, Smartphone, Tag, Trash2 } from 'lucide-react';
 import { Link } from 'react-router';
 import { useStore } from 'zustand';
 
@@ -8,12 +8,59 @@ import {
   TOOLS_ROW_LOADING_SUBTITLE,
   toolsRowSubtitle,
 } from '@/domain/recentlyDeleted';
+import {
+  PHONE_ONLY_BADGE,
+  PHONE_ONLY_NOTE,
+  ROUTINES_SECTION_TITLE,
+  TOOLS_ENTRIES,
+  toolsEntryId,
+} from '@/domain/tools';
+import type { ToolsEntry } from '@/domain/tools';
 import { useRecentlyDeleted } from '@/features/recentlyDeleted/useRecentlyDeleted';
 import { Card } from '@/shared/Card';
 import { PageHeader } from '@/shared/PageHeader';
 import { SectionLabel } from '@/shared/SectionLabel';
 
-/** `ToolsView`, the part that exists so far: the editors' doors and the Recently Deleted section. M1.7 adds the rest. */
+const GLYPHS: Record<ToolsEntry['glyph'], typeof MapPin> = { pin: MapPin, grid: LayoutGrid };
+
+function EntryRow({ entry }: { readonly entry: ToolsEntry }) {
+  const Glyph = GLYPHS[entry.glyph];
+  const body = (
+    <>
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-card bg-card-surface-secondary text-label-secondary">
+        <Glyph aria-hidden="true" className="size-6" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2 text-base font-medium">
+          {entry.title}
+          {entry.availability.kind === 'phone' ? (
+            <span className="rounded-card bg-card-surface-secondary px-2 py-1 text-xs font-semibold text-label-secondary">
+              {PHONE_ONLY_BADGE}
+            </span>
+          ) : null}
+        </span>
+        <span className="block text-xs text-label-secondary">{entry.caption}</span>
+      </span>
+    </>
+  );
+  return (
+    <li id={toolsEntryId(entry)}>
+      {entry.availability.kind === 'route' ? (
+        <Link to={entry.availability.path} className="flex min-h-14 items-center gap-2 px-4 py-2">
+          {body}
+          <ChevronRight aria-hidden="true" className="size-4 text-label-tertiary" />
+        </Link>
+      ) : (
+        <div className="flex min-h-14 items-center gap-2 px-4 py-2">
+          {body}
+          <Smartphone aria-hidden="true" className="size-4 text-label-tertiary" />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** `ToolsView`: the catalog doors, the Tag Editor door, the Routines note, and Recently Deleted. */
 export function ToolsPage() {
   const store = useRecentlyDeleted();
   const screen = useStore(store, (s) => s.screen);
@@ -26,30 +73,34 @@ export function ToolsPage() {
   return (
     <>
       <PageHeader title="Tools" />
-      <SectionLabel className="mb-2">Organise</SectionLabel>
       <Card className="p-0">
-        <ul className="divide-y divide-card-border">
+        <ul className="divide-y divide-card-border" aria-label="Tools">
+          {TOOLS_ENTRIES.map((entry) => (
+            <EntryRow key={entry.destination} entry={entry} />
+          ))}
           <li>
-            <Link
-              to="/areas/editor"
-              className="flex min-h-14 items-center gap-2 px-4 text-base font-medium"
-            >
-              <span className="flex-1">Life Areas</span>
-              <ChevronRight aria-hidden="true" className="size-4 text-label-tertiary" />
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/tags"
-              className="flex min-h-14 items-center gap-2 px-4 text-base font-medium"
-            >
-              <Tag aria-hidden="true" className="size-4 text-label-secondary" />
-              <span className="flex-1">Tag Editor</span>
+            <Link to="/tags" className="flex min-h-14 items-center gap-2 px-4 py-2">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-card bg-card-surface-secondary text-label-secondary">
+                <Tag aria-hidden="true" className="size-6" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-medium">Tag Editor</span>
+                <span className="block text-xs text-label-secondary">
+                  Rename, merge, and delete tags.
+                </span>
+              </span>
               <ChevronRight aria-hidden="true" className="size-4 text-label-tertiary" />
             </Link>
           </li>
         </ul>
       </Card>
+      <section aria-label={ROUTINES_SECTION_TITLE} className="mt-6">
+        <SectionLabel className="mb-2">{ROUTINES_SECTION_TITLE}</SectionLabel>
+        <Card className="flex items-start gap-2">
+          <Smartphone aria-hidden="true" className="mt-1 size-4 shrink-0 text-label-secondary" />
+          <p className="text-sm text-label-secondary">{PHONE_ONLY_NOTE}</p>
+        </Card>
+      </section>
       <section aria-label={SECTION_TITLE} className="mt-6">
         <SectionLabel className="mb-1">{SECTION_TITLE}</SectionLabel>
         <p className="mb-2 text-xs text-label-secondary">{SECTION_CAPTION}</p>

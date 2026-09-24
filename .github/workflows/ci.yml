@@ -23,6 +23,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+        env:
+          VITE_BUILD: ${{ github.sha }}
 
   emulator:
     name: Data layer against the Firebase Emulator Suite
