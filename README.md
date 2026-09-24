@@ -7,10 +7,27 @@ full-size, keyboard-driven surface for everything else.
 
 ## Status
 
-**Phase 0 and Phase 1 are complete** on this branch: tooling and the design tokens, Firebase and the
-codec, auth and seeding, Tasks, Life Areas and Tags, Journal, Captures, Recently Deleted and Undo,
-Settings and account deletion, and the Tools tab. Phase 2 (momentum on Today, focus sprints) and
-Phase 3 (places, read-only) are next. Voice captures wait for a server transcription function.
+**Phases 0, 1 and 2 are complete** on this branch. Phase 1: tooling and the design tokens, Firebase
+and the codec, auth and seeding, Tasks, Life Areas and Tags, Journal, Captures, Recently Deleted
+and Undo, Settings and account deletion, and the Tools tab. Phase 2: momentum on Today (the ring,
+best next move, week review), nudges, focus sprints, celebrations and the AI daily summary.
+Phase 3 (places, read-only) is next. Voice captures wait for a server transcription function.
+
+### Where the web deliberately differs from the phone
+
+- **No Lock Screen or background notifications.** Nudge and sprint reminders are browser
+  notifications, asked for on a Save (a gesture), and they fire only while a tab is open.
+- **Sprint timers run in the tab.** A sprint survives a reload (it is persisted per account), and
+  a sprint that ended while no tab was open reports itself on the next visit.
+- **No location stamps** on captures, closures or sprints until Phase 3; places, routines and
+  arrival nudges stay on the phone.
+- **Celebrations:** the chime is synthesised with Web Audio (the iOS chime asset is not in this
+  repo) and only plays after a click or key press on the page, as browsers require; there are no
+  haptics; the routine-finished milestone waits for routines. Any open dialog holds a full-screen
+  celebration until it closes (the phone asks UIKit; the web asks for `dialog[open]`).
+- **The daily summary** reaches the iOS repo's `dailySummary` function through a same-origin
+  Hosting rewrite (`/api/daily-summary`), because the function is deployed with CORS off. When the
+  model call fails, the summary is synthesised on the device and labelled so.
 
 The assessment that scoped the work: [`docs/ios-to-web-assessment.md`](docs/ios-to-web-assessment.md).
 Deploying: [`docs/DEPLOY.md`](docs/DEPLOY.md). Working rules for Claude Code: [`CLAUDE.md`](CLAUDE.md).

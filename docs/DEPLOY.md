@@ -44,6 +44,32 @@ version (CI sets it to the commit SHA).
 9. Install it to the Home Screen on the phone (Share → Add to Home Screen); it opens standalone.
 10. On the iPhone app, nothing has changed: same data, same rules.
 
+## Phase 2 checklist (E, after deploying this branch)
+
+1. **The summary rewrite resolves.** `firebase.json` rewrites `/api/daily-summary` to the Cloud Run
+   service `dailysummary` in `us-central1`. Confirm that is the service behind
+   `https://dailysummary-dg5rypfbaq-uc.a.run.app` (Cloud Run console, or
+   `gcloud run services list --project adhdlifeos-acb49`). If the id differs, change it in
+   `firebase.json` and in `scripts/assert-hosting-only.mjs`. The deploy itself fails if the
+   service does not exist.
+2. **The hosting site serves it.** On the deployed site, open the week review, pick a tone and
+   press Generate. The provenance line should read **Claude · <tone> · <time>**. If it reads
+   **On-device synthesis**, the model call failed and the fallback ran: check the function's logs
+   for a 401 (the `Authorization` header did not arrive) or a timeout. Hosting's proxy to Cloud Run
+   has its own request timeout (documented as 60 s when this was written; confirm it in the Firebase
+   Hosting docs), which is shorter than the function's 120 s and the phone's 90 s. A slow model reply through the web
+   therefore falls back to on-device synthesis rather than hanging.
+3. **Notifications on the deployed origin.** Settings in the browser must allow notifications for
+   `adhd-lifeos-web.web.app`: create a nudge (Save asks for permission), and start a short sprint.
+   The reminders appear while the tab is open.
+4. **Celebrations.** Close a task (a pop from the control), confirm a finished sprint (full
+   screen; the stack-clearing one adds fireworks and, in light appearance, the dim), and turn
+   Settings → Celebrations off to check that the full-screen moments stop while the pops stay.
+   Celebration sounds is off by default; turn it on and click once on the page before expecting
+   the chime.
+5. **The phone agrees.** A nudge done for now, a sprint logged and a task closed on the web all show
+   on the phone after its next refresh, with no decode errors (iOS decodes strictly).
+
 ## Local development against the real project
 
 ```bash

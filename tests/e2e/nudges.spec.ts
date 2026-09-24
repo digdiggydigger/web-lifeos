@@ -1,50 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { signUpAndEnter, TEST_PASSWORD } from './support';
-
-// The emulator ports from firebase.emulators.json; the Firestore emulator honours `Bearer owner` as admin.
-const AUTH = 'http://127.0.0.1:9099';
-const FIRESTORE = 'http://127.0.0.1:8080';
-const PROJECT = 'demo-adhdlifeos';
-
-async function uidFor(email: string): Promise<string> {
-  const response = await fetch(
-    `${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: TEST_PASSWORD, returnSecureToken: true }),
-    },
-  );
-  const json = (await response.json()) as { localId?: string };
-  if (!json.localId) throw new Error(`No uid for ${email}: ${JSON.stringify(json)}`);
-  return json.localId;
-}
-
-/** A daily 09:00 nudge created two days ago: due whatever the clock says now. */
-async function seedDueNudge(uid: string, label: string): Promise<void> {
-  const id = crypto.randomUUID().toUpperCase();
-  const created = new Date(Date.now() - 2 * 86_400_000).toISOString();
-  const response = await fetch(
-    `${FIRESTORE}/v1/projects/${PROJECT}/databases/(default)/documents/users/${uid}/nudges?documentId=${id}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
-      body: JSON.stringify({
-        fields: {
-          id: { stringValue: id },
-          label: { stringValue: label },
-          schedule: { stringValue: '0 9 * * *' },
-          active: { booleanValue: true },
-          created_at: { timestampValue: created },
-          updated_at: { timestampValue: created },
-        },
-      }),
-    },
-  );
-  if (!response.ok)
-    throw new Error(`Seeding the nudge failed: ${response.status} ${await response.text()}`);
-}
+import { seedDueNudge, signUpAndEnter, uidFor } from './support';
 
 test.use({ permissions: ['notifications'] });
 

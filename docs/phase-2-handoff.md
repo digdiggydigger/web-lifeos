@@ -1,5 +1,9 @@
 # Phase 2 handoff — for the next Claude Code session
 
+> **Historical.** Phase 2 was completed after this note: M2.4 Celebrations (`f262d66`), M2.5 AI
+> daily summary (`0ee495e`) and M2.6 journeys and deploy notes. The README lists the web
+> deviations; `docs/DEPLOY.md` has E's Phase 2 checklist.
+
 Written 2026-09-24 at the end of a session that delivered M2.1–M2.3. Read `CLAUDE.md` first (rules,
 commands, design rules); this note is only what a fresh session cannot recover from the repo:
 where the work stands, what E has instructed, and the M2.4/M2.5/M2.6 designs already worked out
