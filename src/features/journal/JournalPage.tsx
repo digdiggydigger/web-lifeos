@@ -1,6 +1,6 @@
 import { Check, ChevronDown, ChevronRight, Inbox, PenSquare, Timer } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useStore } from 'zustand';
 
 import { capturePrimaryText } from '@/domain/captures';
@@ -18,6 +18,7 @@ import {
 } from '@/domain/journal';
 import type { TimelineDay, TimelineEntry, TimelineFilter } from '@/domain/journal';
 import { formatShortTime } from '@/domain/time/calendar';
+import { useCaptureStores } from '@/features/captures/useCaptureStores';
 import type { Log } from '@/domain/types';
 import { Card } from '@/shared/Card';
 import { chipClass, fieldClass } from '@/shared/Chips';
@@ -31,6 +32,8 @@ import { useJournalStore } from './useJournalStore';
 /** `JournalView`: the header line, the filter chips, the day-grouped timeline, and the pencil door. */
 export function JournalPage() {
   const store = useJournalStore();
+  const { client: captureClient } = useCaptureStores();
+  const navigate = useNavigate();
   const state = useStore(store, (s) => s.state);
   const lifeAreas = useStore(store, (s) => s.lifeAreas);
   const tasks = useStore(store, (s) => s.tasks);
@@ -279,6 +282,8 @@ export function JournalPage() {
         store={store}
         onClose={() => setComposing(false)}
         onCreated={() => setComposing(false)}
+        captureClient={captureClient}
+        onOpenCapture={(id) => void navigate(`/captures/${id}`)}
       />
     </>
   );

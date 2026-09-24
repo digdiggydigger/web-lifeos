@@ -12,6 +12,7 @@ import { TaskCreateDialog } from '@/features/tasks/TaskCreateDialog';
 import { TaskRow } from '@/features/tasks/TaskRow';
 import { useTaskClients } from '@/features/tasks/useTaskClients';
 import { recentActionStore } from '@/features/undo/recentActionStore';
+import { CaptureRowSummary } from '@/features/captures/CaptureBits';
 import { Card } from '@/shared/Card';
 import { chipClass } from '@/shared/Chips';
 import { EmptyState } from '@/shared/EmptyState';
@@ -33,6 +34,7 @@ export function LifeAreaDetailPage() {
   const allTasks = useStore(store, (s) => s.allTasks);
   const filtered = useStore(store, (s) => s.filteredTasks);
   const logs = useStore(store, (s) => s.logs);
+  const captures = useStore(store, (s) => s.captures);
   const mutationError = useStore(store, (s) => s.mutationErrorMessage);
   const [filter, setFilter] = useState<AreaDetailFilter>('tasks');
   const [creating, setCreating] = useState(false);
@@ -48,8 +50,8 @@ export function LifeAreaDetailPage() {
   const counts: Record<AreaDetailFilter, number> = {
     tasks: openCount,
     journal: logs.length,
-    captures: 0,
-    all: openCount + logs.length,
+    captures: captures.length,
+    all: openCount + logs.length + captures.length,
   };
 
   function close(task: Task) {
@@ -184,11 +186,30 @@ export function LifeAreaDetailPage() {
       {state.kind === 'loaded' && showCaptures ? (
         <section aria-label="Captures" className="mb-6">
           <SectionLabel className="mb-2">Captures</SectionLabel>
-          <Card>
-            <p className="text-sm text-label-secondary">
-              Captures filed here arrive with the inbox.
-            </p>
-          </Card>
+          {captures.length === 0 ? (
+            <Card>
+              <p className="text-sm text-label-secondary">No captures filed here.</p>
+            </Card>
+          ) : (
+            <Card className="p-0">
+              <ul className="divide-y divide-card-border">
+                {captures.map((capture) => (
+                  <li key={capture.id}>
+                    <Link
+                      to={`/captures/${capture.id}`}
+                      className="flex min-h-14 items-center px-4 py-2"
+                    >
+                      <CaptureRowSummary
+                        capture={capture}
+                        lifeAreas={area ? [area] : []}
+                        allTags={[]}
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </section>
       ) : null}
 

@@ -2,12 +2,20 @@ import { X } from 'lucide-react';
 import { useStore } from 'zustand';
 
 import {
-  RECENT_ACTION_BUTTON,
   recentActionAnnouncement,
+  recentActionButtonLabel,
+  recentActionTint,
   recentActionVerb,
 } from '@/domain/undo/recentAction';
+import type { RecentActionTint } from '@/domain/undo/recentAction';
 
 import { recentActionStore } from './recentActionStore';
+
+const tintClass: Record<RecentActionTint, string> = {
+  completion: 'text-state-go',
+  accent: 'text-accent',
+  secondary: 'text-label-secondary',
+};
 
 /** The one app-wide undo slot, above the bottom bar on phones and bottom-left on desktop. */
 export function UndoCapsule() {
@@ -26,7 +34,9 @@ export function UndoCapsule() {
         <div className="spring pointer-events-auto mx-auto flex max-w-md items-center gap-2 rounded-card border border-card-border bg-card-surface py-1 pl-4 shadow-card">
           <span className="sr-only">{recentActionAnnouncement(current)}</span>
           <p aria-hidden="true" className="min-w-0 flex-1 truncate text-sm">
-            <span className="font-semibold">{recentActionVerb(current.kind)}</span>
+            <span className={`font-semibold ${tintClass[recentActionTint(current.kind)]}`}>
+              {recentActionVerb(current.kind, current.areaLabel)}
+            </span>
             <span className="text-label-secondary"> · {current.subject}</span>
           </p>
           <button
@@ -35,7 +45,7 @@ export function UndoCapsule() {
             onClick={() => void undo()}
             className="min-h-11 px-4 text-sm font-semibold text-accent disabled:text-label-tertiary"
           >
-            {RECENT_ACTION_BUTTON}
+            {recentActionButtonLabel(current.kind)}
           </button>
           <button
             type="button"

@@ -10,6 +10,7 @@ import {
   captureSoftDelete,
   captureUnprocessed,
   captureUpdate,
+  newCapture,
 } from './captures';
 import { taskSoftDelete } from './tasks';
 
@@ -110,5 +111,55 @@ describe('capture soft delete', () => {
     const task = new Set(Object.keys(taskSoftDelete(stamp)));
     const capture = Object.keys(captureSoftDelete(stamp));
     expect(capture.some((key) => task.has(key))).toBe(false);
+  });
+});
+
+describe('newCapture + encodeCapture', () => {
+  it('writes the camelCase key set with created_at, no tag_ids, no nulls, no snake_case', async () => {
+    const { encodeCapture } = await import('../schemas');
+    const fields = encodeCapture(
+      newCapture(
+        {
+          content: 'Buy milk',
+          kind: 'note',
+          title: undefined,
+          lifeAreaId,
+          mediaKey: undefined,
+          mediaContentType: undefined,
+        },
+        stamp,
+        undefined,
+        'AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE',
+      ),
+    );
+    expect(Object.keys(fields).sort()).toEqual([
+      'content',
+      'created_at',
+      'id',
+      'kind',
+      'lifeAreaId',
+      'processed',
+    ]);
+    expect(fields['processed']).toBe(false);
+    expect(fields).not.toHaveProperty('life_area_id');
+    expect(fields).not.toHaveProperty('status');
+    expect(Object.values(fields)).not.toContain(null);
+    const photo = encodeCapture(
+      newCapture(
+        {
+          content: '',
+          kind: 'photo',
+          title: undefined,
+          lifeAreaId: undefined,
+          mediaKey: 'users/u/captures/x.jpg',
+          mediaContentType: 'image/jpeg',
+        },
+        stamp,
+        'https://example.com/x.jpg',
+      ),
+    );
+    expect(photo['mediaURL']).toBe('https://example.com/x.jpg');
+    expect(photo['mediaContentType']).toBe('image/jpeg');
+    expect(photo).not.toHaveProperty('media_url');
   });
 });

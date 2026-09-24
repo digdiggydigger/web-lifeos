@@ -4,6 +4,7 @@ import type { RouteObject } from 'react-router';
 import { AreasPage } from '@/features/areas/AreasPage';
 import { LifeAreaDetailPage } from '@/features/areas/LifeAreaDetailPage';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { CaptureDetailPage } from '@/features/captures/CaptureDetailPage';
 import { CapturesPage } from '@/features/captures/CapturesPage';
 import { TokensPage } from '@/features/dev/TokensPage';
 import { JournalPage } from '@/features/journal/JournalPage';
@@ -47,6 +48,7 @@ export const appRoutes: RouteObject[] = [
           { path: 'tags/:id', element: <TagEditorDetailPage /> },
           { path: 'journal', element: <JournalPage /> },
           { path: 'captures', element: <CapturesPage /> },
+          { path: 'captures/:id', element: <CaptureDetailPage /> },
           { path: 'tools', element: <ToolsPage /> },
           { path: 'settings', element: <SettingsPage /> },
           ...devRoutes,

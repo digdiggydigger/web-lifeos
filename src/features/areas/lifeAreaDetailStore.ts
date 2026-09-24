@@ -4,7 +4,8 @@ import type { StoreApi } from 'zustand/vanilla';
 
 import { applyingStatus, filterTasks } from '@/domain/tasks';
 import type { TaskStatusFilterOption } from '@/domain/tasks';
-import type { Log, Task } from '@/domain/types';
+import { capturesFiledHere } from '@/domain/lifeAreas';
+import type { Capture, Log, Task } from '@/domain/types';
 import { errorText } from '@/features/tasks/tasksClient';
 
 import type { LifeAreaDetailClient } from './areasClient';
@@ -20,6 +21,7 @@ export interface LifeAreaDetailState {
   readonly allTasks: readonly Task[];
   readonly filteredTasks: readonly Task[];
   readonly logs: readonly Log[];
+  readonly captures: readonly Capture[];
   readonly mutationErrorMessage: string | undefined;
   readonly load: () => Promise<void>;
   readonly setStatusFilter: (filter: TaskStatusFilterOption) => void;
@@ -63,17 +65,20 @@ export function createLifeAreaDetailStore(
       allTasks: [],
       filteredTasks: [],
       logs: [],
+      captures: [],
       mutationErrorMessage: undefined,
       load: async () => {
         if (get().state.kind !== 'loaded') set({ state: { kind: 'loading' } });
         try {
-          const [allTasks, logs] = await Promise.all([
+          const [allTasks, logs, allCaptures] = await Promise.all([
             client.fetchTasksForArea(lifeAreaId),
             client.fetchLogsForArea(lifeAreaId),
+            client.fetchAllCaptures().catch(() => []),
           ]);
           set({
             allTasks,
             logs: [...logs].sort((a, b) => b.entryDate.getTime() - a.entryDate.getTime()),
+            captures: capturesFiledHere(allCaptures, lifeAreaId),
             state: { kind: 'loaded' },
           });
           refilter();

@@ -20,6 +20,10 @@ import {
 import { LOG_TYPES } from '@/domain/types';
 import type { LogType } from '@/domain/types';
 
+import { fileDraftIfNeeded } from '@/features/captures/draftFiling';
+import type { CaptureClient } from '@/features/captures/captureClient';
+import { recentActionStore } from '@/features/undo/recentActionStore';
+
 import { EnergyMoodPicker } from './EnergyMoodPicker';
 import type { JournalState } from './journalStore';
 
@@ -28,6 +32,9 @@ interface LogComposerDialogProps {
   readonly store: StoreApi<JournalState>;
   readonly onClose: () => void;
   readonly onCreated: () => void;
+  /** `LogComposerView+Drafts`: a closed composer with text keeps it as a note in the inbox. */
+  readonly captureClient?: Pick<CaptureClient, 'createCapture'> | undefined;
+  readonly onOpenCapture?: ((id: string) => void) | undefined;
 }
 
 const TYPE_LABEL: Record<LogType, string> = { log: 'Log', journal: 'Journal' };
@@ -36,7 +43,14 @@ const TYPE_LABEL: Record<LogType, string> = { log: 'Log', journal: 'Journal' };
  * `LogComposerView`: "New entry". A journal entry is written on paper (the gold pad), a quick log
  * on the ordinary page. Location tagging is Phase 3; draft-to-inbox on close is M1.4.
  */
-export function LogComposerDialog({ open, store, onClose, onCreated }: LogComposerDialogProps) {
+export function LogComposerDialog({
+  open,
+  store,
+  onClose,
+  onCreated,
+  captureClient,
+  onOpenCapture,
+}: LogComposerDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const composer = useStore(store, (s) => s.composer);
   const lifeAreas = useStore(store, (s) => s.lifeAreas);
@@ -44,6 +58,8 @@ export function LogComposerDialog({ open, store, onClose, onCreated }: LogCompos
   const isCreating = useStore(store, (s) => s.isCreating);
   const errorMessage = useStore(store, (s) => s.createErrorMessage);
   const [draftTag, setDraftTag] = useState('');
+  const submitted = useRef(false);
+  const closed = useRef(false);
   const type = composer.type;
   const chips = chipPalette(type);
   const soft = chips.softInk ?? 'text-label-secondary';
@@ -52,9 +68,28 @@ export function LogComposerDialog({ open, store, onClose, onCreated }: LogCompos
   useEffect(() => {
     const el = dialog.current;
     if (!el) return;
-    if (open && !el.open) el.showModal();
-    else if (!open && el.open) el.close();
+    if (open && !el.open) {
+      submitted.current = false;
+      closed.current = false;
+      el.showModal();
+    } else if (!open && el.open) el.close();
   }, [open]);
+
+  function handleClose() {
+    if (!submitted.current && !closed.current && captureClient && onOpenCapture) {
+      closed.current = true;
+      const text = store.getState().composer.body;
+      void fileDraftIfNeeded(
+        captureClient,
+        text,
+        (a) => recentActionStore.getState().record(a),
+        onOpenCapture,
+      ).then((filed) => {
+        if (filed) store.getState().setComposer({ body: '' });
+      });
+    }
+    onClose();
+  }
 
   function chip(selected: boolean): string {
     return `spring min-h-11 rounded-card px-4 text-sm font-semibold ${selected ? `${chips.selectedFill} ${chips.selectedLabel}` : `${chips.quietSurface} ${chips.quietLabel}`}`;
@@ -63,7 +98,10 @@ export function LogComposerDialog({ open, store, onClose, onCreated }: LogCompos
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!valid || isCreating) return;
-    if (await store.getState().createLog()) onCreated();
+    if (await store.getState().createLog()) {
+      submitted.current = true;
+      onCreated();
+    }
   }
 
   async function addTag() {
@@ -76,13 +114,13 @@ export function LogComposerDialog({ open, store, onClose, onCreated }: LogCompos
     <dialog
       ref={dialog}
       aria-labelledby="new-entry-title"
-      onClose={onClose}
+      onClose={handleClose}
       className={`fixed inset-x-0 bottom-0 m-0 max-h-[90vh] w-full max-w-none rounded-t-card p-0 backdrop:bg-scrim md:inset-0 md:m-auto md:max-w-lg md:rounded-card ${composerChrome(type)} ${composerChromeInk(type) ?? 'text-label-primary'}`}
     >
       {open ? (
         <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col">
           <div className="flex items-center justify-between px-4 pt-4">
-            <button type="button" onClick={onClose} className="min-h-11 text-sm font-medium">
+            <button type="button" onClick={handleClose} className="min-h-11 text-sm font-medium">
               Close
             </button>
             <h2 id="new-entry-title" className="text-base font-bold">

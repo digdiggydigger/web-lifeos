@@ -93,6 +93,7 @@ describe('lifeAreaDetailStore', () => {
         fail === 'logs'
           ? Promise.reject(new Error('Network error'))
           : Promise.resolve([log(2), log(0)]),
+      fetchAllCaptures: () => Promise.resolve([]),
       updateStatus: (id, status) => {
         calls.push([id, status]);
         return Promise.resolve();

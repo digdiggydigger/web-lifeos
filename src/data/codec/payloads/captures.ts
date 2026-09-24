@@ -1,9 +1,14 @@
 /**
- * The capture partial-update payloads (`FirestoreFieldPayloads.captureUpdate` and friends).
- * camelCase apart from `created_at` and `tag_ids`. The retired `status` field is never minted.
+ * The capture payloads (`FirestoreFieldPayloads.captureUpdate` and friends) and the one place a
+ * capture document is born (`FirebaseCaptureClientAdapter.createCapture`). camelCase apart from
+ * `created_at` and `tag_ids`. The retired `status` field is never minted.
  */
+import type { NormalizedCreateCaptureInput } from '@/domain/captures/captureValidation';
+import type { Capture } from '@/domain/types';
+
 import { clear, dateField, setNullable } from '../fields';
 import type { Delta, Fields } from '../fields';
+import { newId } from '../ids';
 import { toTimestamp } from '../time';
 
 /** `Capture/CaptureClientAdapting.swift` `CaptureUpdate`. */
@@ -42,4 +47,24 @@ export function captureSoftDelete(now: Date): Fields {
 
 export function captureRestore(): Fields {
   return { deletedAt: clear() };
+}
+
+/** A new, unprocessed capture. `mediaURL` is the permanent download URL resolved from the media key. */
+export function newCapture(
+  input: NormalizedCreateCaptureInput,
+  now: Date,
+  mediaURL: string | undefined,
+  id: string = newId(),
+): Capture {
+  return {
+    id,
+    content: input.content,
+    kind: input.kind,
+    processed: false,
+    createdAt: now,
+    ...(input.title !== undefined ? { title: input.title } : {}),
+    ...(input.lifeAreaId !== undefined ? { lifeAreaId: input.lifeAreaId } : {}),
+    ...(mediaURL !== undefined ? { mediaURL } : {}),
+    ...(input.mediaContentType !== undefined ? { mediaContentType: input.mediaContentType } : {}),
+  };
 }
