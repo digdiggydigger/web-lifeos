@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 interface PageHeaderProps {
   readonly title: string;
-  readonly subtitle?: string;
+  readonly subtitle?: string | undefined;
   readonly trailing?: ReactNode;
 }
 

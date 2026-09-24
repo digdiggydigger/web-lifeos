@@ -31,3 +31,23 @@ describe('lifeAreaSortOrders', () => {
     ]);
   });
 });
+
+describe('lifeAreaUpdate / lifeAreaArchived', () => {
+  it('writes only the keys given, with the palette fragment, and archived as a plain boolean', async () => {
+    const { lifeAreaArchived, lifeAreaUpdate } = await import('./lifeAreas');
+    expect(lifeAreaUpdate({ palette: { kind: 'unchanged' } })).toEqual({});
+    expect(lifeAreaUpdate({ name: 'Career', palette: { kind: 'unchanged' } })).toEqual({
+      name: 'Career',
+    });
+    expect(lifeAreaUpdate({ colour: '💼', palette: { kind: 'set', key: 'growth' } })).toEqual({
+      colour: '💼',
+      palette: 'growth',
+    });
+    expect(
+      Object.keys(
+        lifeAreaUpdate({ name: 'A', colour: 'B', palette: { kind: 'automatic' } }),
+      ).sort(),
+    ).toEqual(['colour', 'name', 'palette']);
+    expect(lifeAreaArchived(false)).toEqual({ archived: false });
+  });
+});

@@ -2,11 +2,16 @@ import { Navigate } from 'react-router';
 import type { RouteObject } from 'react-router';
 
 import { AreasPage } from '@/features/areas/AreasPage';
+import { LifeAreaDetailPage } from '@/features/areas/LifeAreaDetailPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { CapturesPage } from '@/features/captures/CapturesPage';
 import { TokensPage } from '@/features/dev/TokensPage';
 import { JournalPage } from '@/features/journal/JournalPage';
+import { LifeAreaEditorDetailPage } from '@/features/lifeAreaEditor/LifeAreaEditorDetailPage';
+import { LifeAreaEditorListPage } from '@/features/lifeAreaEditor/LifeAreaEditorListPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { TagEditorDetailPage } from '@/features/tagEditor/TagEditorDetailPage';
+import { TagEditorListPage } from '@/features/tagEditor/TagEditorListPage';
 import { TaskDetailPage } from '@/features/tasks/TaskDetailPage';
 import { TasksPage } from '@/features/tasks/TasksPage';
 import { TodayPage } from '@/features/today/TodayPage';
@@ -35,6 +40,11 @@ export const appRoutes: RouteObject[] = [
           { path: 'tasks', element: <TasksPage /> },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
           { path: 'areas', element: <AreasPage /> },
+          { path: 'areas/editor', element: <LifeAreaEditorListPage /> },
+          { path: 'areas/editor/:id', element: <LifeAreaEditorDetailPage /> },
+          { path: 'areas/:id', element: <LifeAreaDetailPage /> },
+          { path: 'tags', element: <TagEditorListPage /> },
+          { path: 'tags/:id', element: <TagEditorDetailPage /> },
           { path: 'journal', element: <JournalPage /> },
           { path: 'captures', element: <CapturesPage /> },
           { path: 'tools', element: <ToolsPage /> },

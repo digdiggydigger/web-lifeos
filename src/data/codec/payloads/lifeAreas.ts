@@ -38,3 +38,20 @@ export function lifeAreaSortOrders(orderedIds: readonly string[]): ReadonlyArray
 }> {
   return orderedIds.map((id, index) => ({ id, fields: { sort_order: index } }));
 }
+
+/** The editor's partial update: name and/or colour (emoji) plus the palette fragment. Empty when nothing changed. */
+export function lifeAreaUpdate(input: {
+  readonly name?: string;
+  readonly colour?: string;
+  readonly palette: LifeAreaPaletteEdit;
+}): Fields {
+  const fields: Fields = {};
+  if (input.name !== undefined) fields['name'] = input.name;
+  if (input.colour !== undefined) fields['colour'] = input.colour;
+  return { ...fields, ...lifeAreaPalette(input.palette) };
+}
+
+/** Archive / unarchive writes the boolean; unarchiving writes `false` rather than clearing the field. */
+export function lifeAreaArchived(archived: boolean): Fields {
+  return { archived };
+}

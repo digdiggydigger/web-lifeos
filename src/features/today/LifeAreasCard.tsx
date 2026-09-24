@@ -48,9 +48,12 @@ export function LifeAreasCard() {
           </p>
         ) : null}
         <p className="mt-4 text-xs text-label-tertiary">
-          Editing arrives in Phase 1.{' '}
           <Link to="/areas" className="text-accent">
             Areas tab
+          </Link>
+          {' · '}
+          <Link to="/areas/editor" className="text-accent">
+            Edit life areas
           </Link>
         </p>
       </Card>

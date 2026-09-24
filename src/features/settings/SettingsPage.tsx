@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 
 import { APPEARANCES, appearanceLabel, readAppearance, setAppearance } from '@/theme/theme';
 import type { Appearance } from '@/theme/theme';
@@ -45,6 +46,24 @@ export function SettingsPage() {
         <p className="mt-4 text-sm text-label-secondary">
           System follows your device. The palette carries light and dark variants for every token.
         </p>
+      </Card>
+      <SectionLabel className="mt-6 mb-2">Organise</SectionLabel>
+      <Card className="p-0">
+        <ul className="divide-y divide-card-border">
+          <li>
+            <Link
+              to="/areas/editor"
+              className="flex min-h-14 items-center px-4 text-base font-medium"
+            >
+              Life Areas
+            </Link>
+          </li>
+          <li>
+            <Link to="/tags" className="flex min-h-14 items-center px-4 text-base font-medium">
+              Tag Editor
+            </Link>
+          </li>
+        </ul>
       </Card>
       <AccountSection />
     </>
