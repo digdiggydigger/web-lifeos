@@ -1,12 +1,21 @@
-/** `logs` (`FirebaseManager+Logs.swift`), the reads the area detail needs now; M1.3 adds the timeline and composer. */
-import { collection, getDocs, orderBy, query, where } from 'firebase/firestore';
+/** `logs` (`FirebaseManager+Logs.swift`): append, delete, and the two reads. Never an update. */
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  setDoc,
+  where,
+} from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 
 import type { Log } from '@/domain/types';
 
 import { decodeList } from '../codec/decodeList';
 import type { DecodedList } from '../codec/decodeList';
-import { decodeLog } from '../codec/schemas';
+import { decodeLog, encodeLog } from '../codec/schemas';
 
 export async function fetchLogs(db: Firestore, uid: string): Promise<DecodedList<Log>> {
   const snapshot = await getDocs(
@@ -29,4 +38,14 @@ export async function fetchLogsForLifeArea(
     items: [...list.items].sort((a, b) => b.entryDate.getTime() - a.entryDate.getTime()),
     skipped: list.skipped,
   };
+}
+
+/** The only write for logs: a full document, born with its tags or never having them. */
+export async function appendLog(db: Firestore, uid: string, log: Log): Promise<void> {
+  await setDoc(doc(db, 'users', uid, 'logs', log.id), encodeLog(log));
+}
+
+/** Removes one entry (undoing capture triage's "Journal it"). There is still no path that edits one. */
+export async function deleteLog(db: Firestore, uid: string, id: string): Promise<void> {
+  await deleteDoc(doc(db, 'users', uid, 'logs', id));
 }

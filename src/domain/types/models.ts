@@ -114,6 +114,24 @@ export interface Log {
   readonly longitude?: number;
 }
 
+/** `Focus/FocusModels.swift` `CompletedFocusSession`: a finished sprint, `focus_sessions/{id}`, snake_case. */
+export interface CompletedFocusSession {
+  readonly id: string;
+  readonly taskTitle: string;
+  readonly lifeAreaEmoji: string;
+  readonly plannedSeconds: number;
+  readonly focusedSeconds: number;
+  readonly checkpointsReached: number;
+  readonly completedNaturally: boolean;
+  readonly startedAt: Date;
+  readonly endedAt: Date;
+  readonly taskId?: string;
+  readonly placeId?: string;
+  readonly latitude?: number;
+  readonly longitude?: number;
+  readonly confirmedAt?: Date;
+}
+
 /** `users/{uid}` (`FirebaseManager.signUp`, `+Seed`). */
 export interface Profile {
   readonly email?: string;
