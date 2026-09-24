@@ -1,0 +1,78 @@
+/** `BestNextMoveCard`: effort in motion-blue, the area in its tint, the due chip in warn, one green close. */
+import { CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router';
+
+import { effortLabel } from '@/domain/momentum';
+import type { LifeArea, Task } from '@/domain/types';
+import { areaClasses } from '@/features/areas/AreaWash';
+import { Card } from '@/shared/Card';
+import { SectionLabel } from '@/shared/SectionLabel';
+
+interface BestNextMoveCardProps {
+  readonly task: Task;
+  readonly lifeArea: LifeArea | undefined;
+  readonly isDueNow: boolean;
+  readonly isClosing: boolean;
+  readonly loggedTodayLabel: string | undefined;
+  readonly onClose: () => void;
+}
+
+const chip = 'inline-flex min-h-6 items-center rounded-card px-2 text-xs font-semibold';
+
+export function BestNextMoveCard(props: BestNextMoveCardProps) {
+  const { task, lifeArea, isDueNow, isClosing, loggedTodayLabel, onClose } = props;
+  const effort = effortLabel(task.focusDurationSeconds);
+  const area = lifeArea ? areaClasses(lifeArea) : undefined;
+  return (
+    <section aria-labelledby="best-next-move-heading">
+      <SectionLabel id="best-next-move-heading" className="mb-2">
+        Best next move
+      </SectionLabel>
+      <Card className="flex flex-col gap-2">
+        {effort || lifeArea || isDueNow ? (
+          <div className="flex flex-wrap gap-2">
+            {effort ? (
+              <span className={`${chip} bg-accent text-on-area-work`}>{effort}</span>
+            ) : null}
+            {lifeArea && area ? (
+              <span className={`${chip} ${area.tint} ${area.text}`}>
+                {lifeArea.colour} {lifeArea.name}
+              </span>
+            ) : null}
+            {isDueNow ? (
+              <span className={`${chip} bg-card-surface-secondary text-state-warn`}>due today</span>
+            ) : null}
+          </div>
+        ) : null}
+        <Link
+          to={`/tasks/${task.id}`}
+          className="block min-h-11 py-2 text-xl font-bold tracking-tight"
+        >
+          {task.title}
+        </Link>
+        {task.notes ? (
+          <p className="line-clamp-2 text-sm text-label-secondary">{task.notes}</p>
+        ) : null}
+        {loggedTodayLabel ? (
+          <p>
+            <span
+              aria-label={`Focus logged: ${loggedTodayLabel}`}
+              className={`${chip} bg-card-surface-secondary text-state-go`}
+            >
+              ✓ {loggedTodayLabel}
+            </span>
+          </p>
+        ) : null}
+        <button
+          type="button"
+          disabled={isClosing}
+          onClick={onClose}
+          className="spring flex min-h-11 w-full items-center justify-center gap-2 rounded-card bg-state-go text-base font-semibold text-on-state-go disabled:opacity-60"
+        >
+          <CheckCircle2 aria-hidden="true" className="size-6" />
+          {isClosing ? 'Closing…' : 'Close it'}
+        </button>
+      </Card>
+    </section>
+  );
+}

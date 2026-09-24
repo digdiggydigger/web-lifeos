@@ -17,6 +17,7 @@ import { TagEditorListPage } from '@/features/tagEditor/TagEditorListPage';
 import { TaskDetailPage } from '@/features/tasks/TaskDetailPage';
 import { TasksPage } from '@/features/tasks/TasksPage';
 import { TodayPage } from '@/features/today/TodayPage';
+import { WeekReviewPage } from '@/features/today/WeekReviewPage';
 import { ToolsPage } from '@/features/tools/ToolsPage';
 
 import { PublicOnly, RequireAuth } from './auth/AuthGate';
@@ -39,6 +40,7 @@ export const appRoutes: RouteObject[] = [
         children: [
           { index: true, element: <Navigate to={HOME_PATH} replace /> },
           { path: 'today', element: <TodayPage /> },
+          { path: 'today/week-review', element: <WeekReviewPage /> },
           { path: 'tasks', element: <TasksPage /> },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
           { path: 'areas', element: <AreasPage /> },

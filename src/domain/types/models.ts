@@ -114,6 +114,19 @@ export interface Log {
   readonly longitude?: number;
 }
 
+/** `Nudges/NudgeModels.swift`: `nudges/{id}`, snake_case; `schedule` is a `MIN HOUR * * DOW` cron string end to end. */
+export interface Nudge {
+  readonly id: string;
+  readonly label: string;
+  readonly schedule: string;
+  readonly active: boolean;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  /** The last dismissal; dueness is measured from it (or from `createdAt` before the first). */
+  readonly lastFiredAt?: Date;
+  readonly completionDates?: readonly Date[];
+}
+
 /** `Focus/FocusModels.swift` `CompletedFocusSession`: a finished sprint, `focus_sessions/{id}`, snake_case. */
 export interface CompletedFocusSession {
   readonly id: string;
