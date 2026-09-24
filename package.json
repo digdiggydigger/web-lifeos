@@ -17,17 +17,23 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "check": "npm run lint && npm run lint:spacing && npm run format:check && npm run typecheck && npm run test && npm run build",
+    "test:e2e": "firebase emulators:exec --project demo-adhdlifeos --config firebase.emulators.json --only auth,firestore,storage \"playwright test\"",
+    "check": "npm run lint && npm run lint:spacing && npm run lint:firebase && npm run format:check && npm run typecheck && npm run test && npm run build",
     "deploy": "firebase deploy --only hosting:web",
     "lint:spacing": "node scripts/check-spacing.mjs",
-    "tokens": "python3 scripts/gen-tokens.py"
+    "tokens": "python3 scripts/gen-tokens.py",
+    "emulators": "firebase emulators:start --project demo-adhdlifeos --config firebase.emulators.json --only auth,firestore,storage",
+    "test:emulator": "firebase emulators:exec --project demo-adhdlifeos --config firebase.emulators.json --only auth,firestore,storage \"vitest run --config vitest.emulator.config.ts\"",
+    "lint:firebase": "node scripts/assert-hosting-only.mjs"
   },
   "dependencies": {
+    "firebase": "^12.19.0",
     "lucide-react": "^1.48.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-router": "^8.4.0"
+    "react-router": "^8.4.0",
+    "zod": "^4.6.5",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -43,6 +49,7 @@
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "firebase-tools": "^15.31.0",
     "globals": "^17.12.0",
     "jsdom": "^30.1.1",
     "prettier": "^3.9.9",

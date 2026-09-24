@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// ADHD LifeOS — Firestore security rules (2026-08-19).
+// Schema: everything lives in per-user subcollections under users/{uid}; document IDs are the
+// app models' UUID strings. These rules close the test-mode gap found during the 2026-08-19
+// account clear (any authenticated user could read/write anyone's data).
+//
+// Two structural decisions mirrored from the app layer (FirebaseManager):
+// - Per-user isolation: only the signed-in owner reaches users/{uid} and its subcollections.
+// - logs is append-only for EDITS: create/read/delete allowed, update denied. Entries can never
+//   be rewritten (the design the old Supabase RLS enforced and LogModels.swift documents), but
+//   owner delete is allowed as of 2026-08-19 so in-app account deletion can cascade the journal.
+//   Note Firestore allows are additive across overlapping matches, so the generic collection
+//   rule below must NOT list 'logs', otherwise it would silently re-grant update here.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // The app-directory catalogue (F-AppDirectory-4, 2026-09-01): the ONE path that is not
+    // per-user. Read-only for any signed-in user; no client may ever write — the console is
+    // the only writer. Until this block is published, the app's read fails permission-denied,
+    // which it treats exactly like being offline (bundled + cache carry the picker).
+    match /catalog/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /users/{uid} {
+      // The profile document itself: email, created_at, and the seeded_at first-login marker.
+      allow read, write: if isOwner(uid);
+
+      // Journal/log entries: append-only for EDITS (no update path, preserving the original
+      // Supabase RLS design), but owner delete is allowed as of 2026-08-19 — in-app account
+      // deletion (App Store 5.1.1(v)) must be able to cascade the journal, and "no rewriting
+      // history" never meant "no right to erasure".
+      match /logs/{logId} {
+        allow read, create, delete: if isOwner(uid);
+        allow update: if false;
+      }
+
+      // Recorded fence crossings (block 4c): the same append-only shape as logs — a crossing is
+      // a historical fact and is never rewritten, but account deletion must be able to cascade
+      // it. Deliberately absent from the generic list below for the same additive-allow reason.
+      match /location_events/{eventId} {
+        allow read, create, delete: if isOwner(uid);
+        allow update: if false;
+      }
+
+      // Every other app collection gets full owner CRUD. Enumerated rather than a bare
+      // wildcard so an unexpected collection name is denied by default ('logs' deliberately
+      // absent — see header). 'routine_runs' (F-RoutineRecord-1, 2026-09-06) belongs HERE and
+      // not beside the append-only pair above: a run moves offered → started → ended in
+      // place, so it must be updatable.
+      match /{collection}/{docId} {
+        allow read, write: if isOwner(uid)
+          && collection in ['tasks', 'life_areas', 'tags', 'captures', 'nudges', 'reminders',
+                            'focus_sessions', 'places', 'routine_runs'];
+      }
+    }
+  }
+}

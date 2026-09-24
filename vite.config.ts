@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-import { colorToken } from './src/theme/tokens';
+import { colorToken } from './src/theme/tokens.ts';
 
 export default defineConfig({
   plugins: [

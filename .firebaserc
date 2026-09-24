@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "adhdlifeos-acb49"
+  },
+  "targets": {
+    "adhdlifeos-acb49": {
+      "hosting": {
+        "web": ["adhd-lifeos-web"]
+      }
+    }
+  }
+}
