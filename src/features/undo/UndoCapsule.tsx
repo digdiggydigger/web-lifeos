@@ -18,7 +18,7 @@ const tintClass: Record<RecentActionTint, string> = {
 };
 
 /** The one app-wide undo slot, above the bottom bar on phones and bottom-left on desktop. */
-export function UndoCapsule() {
+export function UndoCapsule({ lifted = false }: { readonly lifted?: boolean }) {
   const current = useStore(recentActionStore, (s) => s.current);
   const undoing = useStore(recentActionStore, (s) => s.undoing);
   const undo = useStore(recentActionStore, (s) => s.undo);
@@ -28,7 +28,7 @@ export function UndoCapsule() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-4 bottom-24 z-50 md:inset-x-auto md:bottom-4 md:left-64"
+      className={`pointer-events-none fixed inset-x-4 z-50 md:inset-x-auto md:left-64 ${lifted ? 'bottom-72 md:bottom-56' : 'bottom-24 md:bottom-4'}`}
     >
       {current ? (
         <div className="spring pointer-events-auto mx-auto flex max-w-md items-center gap-2 rounded-card border border-card-border bg-card-surface py-1 pl-4 shadow-card">

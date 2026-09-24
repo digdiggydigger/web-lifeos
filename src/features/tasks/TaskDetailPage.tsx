@@ -1,8 +1,14 @@
+import { Play } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useStore } from 'zustand';
 
-import { resolvedDuration, resolvedNudgeCount } from '@/domain/focus/focusSprintConfiguration';
+import {
+  focusSprintPlan,
+  resolvedDuration,
+  resolvedNudgeCount,
+  sprintPlanSummary,
+} from '@/domain/focus';
 import {
   buildMomentumContext,
   closeButtonLabel,
@@ -15,6 +21,7 @@ import type { TaskEditedFields } from '@/domain/tasks';
 import { formatAbbreviatedDate } from '@/domain/time/calendar';
 import { TASK_PRIORITIES } from '@/domain/types';
 import type { LifeArea, Task, TaskPriority } from '@/domain/types';
+import { useFocusStore } from '@/features/focus/useFocusStore';
 import { preferencesStore } from '@/features/settings/preferencesStore';
 import { recentActionStore } from '@/features/undo/recentActionStore';
 import { Card } from '@/shared/Card';
@@ -51,6 +58,7 @@ export function TaskDetailPage() {
   const warningMessage = useStore(store, (s) => s.warningMessage);
   const defaultSprintSeconds = useStore(store, (s) => s.defaultSprintSeconds);
   const showStreaks = useStore(preferencesStore, (s) => s.preferences.showStreaks);
+  const focus = useFocusStore();
 
   const [edited, setEdited] = useState<TaskEditedFields | undefined>(undefined);
   const [context, setContext] = useState<{ tasks: Task[]; lifeAreas: LifeArea[] }>({
@@ -133,6 +141,24 @@ export function TaskDetailPage() {
   const attached = new Set(tags.map((t) => t.id));
   const update = (patch: Partial<TaskEditedFields>) =>
     setEdited((e) => (e ? { ...e, ...patch } : e));
+
+  const planDuration = edited.focusDurationSeconds ?? defaultSprintSeconds;
+  const plan = focusSprintPlan({
+    taskId: task.id,
+    taskTitle: edited.title.trim(),
+    lifeAreaEmoji: area?.colour,
+    durationSeconds: planDuration,
+    nudgeCount: edited.nudgesCount ?? resolvedNudgeCount(undefined, planDuration),
+  });
+  const planSummary = sprintPlanSummary(plan.durationSeconds, plan.nudgeCount);
+
+  /** `TaskDetailView.startFocusSprint`: unsaved edits land first, then the sprint starts and the detail dismisses. */
+  async function startFocusSprint() {
+    if (dirty.hasUnsavedChanges && !(await store.getState().save(edited!))) return;
+    latest.current = {};
+    focus.getState().startPlan(plan);
+    void navigate('/tasks');
+  }
 
   async function save() {
     if (await store.getState().save(edited!)) {
@@ -318,6 +344,25 @@ export function TaskDetailPage() {
               ))}
             </select>
           </div>
+          {task.status === 'open' ? (
+            <button
+              type="button"
+              aria-label={`Start focus sprint: ${planSummary}`}
+              onClick={() => void startFocusSprint()}
+              className="spring flex min-h-11 w-full items-center gap-2 rounded-card border border-card-border px-4 py-2 text-left"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold tracking-widest text-accent uppercase">
+                  Launch Focus Sprint
+                </span>
+                <span className="block text-sm text-label-secondary">{planSummary}</span>
+              </span>
+              <span className="inline-flex min-h-8 items-center gap-1 rounded-full bg-accent px-4 text-sm font-bold text-on-area-work">
+                <Play aria-hidden="true" className="size-4" />
+                Start
+              </span>
+            </button>
+          ) : null}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor={ids.sprint} className="mb-1 block text-sm text-label-secondary">

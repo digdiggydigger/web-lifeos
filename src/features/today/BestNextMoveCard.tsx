@@ -1,5 +1,5 @@
 /** `BestNextMoveCard`: effort in motion-blue, the area in its tint, the due chip in warn, one green close. */
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Play } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { effortLabel } from '@/domain/momentum';
@@ -15,12 +15,24 @@ interface BestNextMoveCardProps {
   readonly isClosing: boolean;
   readonly loggedTodayLabel: string | undefined;
   readonly onClose: () => void;
+  /** Hidden while any sprint runs: this card must not offer a second one over the top. */
+  readonly showsStartSession: boolean;
+  readonly onStartSession: () => void;
 }
 
 const chip = 'inline-flex min-h-6 items-center rounded-card px-2 text-xs font-semibold';
 
 export function BestNextMoveCard(props: BestNextMoveCardProps) {
-  const { task, lifeArea, isDueNow, isClosing, loggedTodayLabel, onClose } = props;
+  const {
+    task,
+    lifeArea,
+    isDueNow,
+    isClosing,
+    loggedTodayLabel,
+    onClose,
+    showsStartSession,
+    onStartSession,
+  } = props;
   const effort = effortLabel(task.focusDurationSeconds);
   const area = lifeArea ? areaClasses(lifeArea) : undefined;
   return (
@@ -72,6 +84,16 @@ export function BestNextMoveCard(props: BestNextMoveCardProps) {
           <CheckCircle2 aria-hidden="true" className="size-6" />
           {isClosing ? 'Closing…' : 'Close it'}
         </button>
+        {showsStartSession ? (
+          <button
+            type="button"
+            onClick={onStartSession}
+            className="spring flex min-h-11 w-full items-center justify-center gap-2 rounded-card border border-card-border text-base font-semibold text-label-secondary"
+          >
+            <Play aria-hidden="true" className="size-4" />
+            {loggedTodayLabel ? 'Start another session' : 'Start session'}
+          </button>
+        ) : null}
       </Card>
     </section>
   );

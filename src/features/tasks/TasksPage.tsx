@@ -12,6 +12,9 @@ import {
 } from '@/domain/tasks';
 import type { HeaderTone } from '@/domain/tasks';
 import type { Task } from '@/domain/types';
+import { planForTask } from '@/domain/focus';
+import { useFocusStore } from '@/features/focus/useFocusStore';
+import { preferencesStore } from '@/features/settings/preferencesStore';
 import { recentActionStore } from '@/features/undo/recentActionStore';
 import { Card } from '@/shared/Card';
 import { EmptyState } from '@/shared/EmptyState';
@@ -41,6 +44,11 @@ export function TasksPage() {
   const lifeAreas = useStore(store, (s) => s.lifeAreas);
   const mutationError = useStore(store, (s) => s.mutationErrorMessage);
   const [creating, setCreating] = useState(false);
+  const focus = useFocusStore();
+  const defaultSprintMinutes = useStore(
+    preferencesStore,
+    (s) => s.preferences.defaultSprintMinutes,
+  );
   const [notice, setNotice] = useState<string | undefined>(undefined);
   const searchId = useId();
   const now = new Date();
@@ -59,6 +67,16 @@ export function TasksPage() {
   }
 
   const areaById = new Map(lifeAreas.map((a) => [a.id, a]));
+  const startFocus = (task: Task) =>
+    focus
+      .getState()
+      .startPlan(
+        planForTask(
+          task,
+          task.lifeAreaId ? areaById.get(task.lifeAreaId) : undefined,
+          defaultSprintMinutes * 60,
+        ),
+      );
   const searching = searchText.trim().length > 0;
   const matchCount =
     state.kind === 'loaded' ? state.groups.reduce((n, g) => n + g.tasks.length, 0) : 0;
@@ -183,6 +201,7 @@ export function TasksPage() {
                   <ul className="divide-y divide-card-border">
                     {group.tasks.map((task) => (
                       <TaskRow
+                        onStartFocus={startFocus}
                         key={task.id}
                         task={task}
                         lifeArea={task.lifeAreaId ? areaById.get(task.lifeAreaId) : undefined}

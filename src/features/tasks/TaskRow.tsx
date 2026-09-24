@@ -1,4 +1,4 @@
-import { Check, Circle } from 'lucide-react';
+import { Check, Circle, Play } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { Link } from 'react-router';
@@ -12,12 +12,14 @@ interface TaskRowProps {
   readonly lifeArea: LifeArea | undefined;
   readonly now: Date;
   readonly onClose: (task: Task) => void;
+  /** The row's sprint launch (`taskStartFocus-…`); absent where a sprint cannot start from here. */
+  readonly onStartFocus?: ((task: Task) => void) | undefined;
 }
 
 const SWIPE_START_PX = 12;
 
 /** One task row: effort chip, title, meta line, and the 44 px close control. Touch users can also swipe right. */
-export function TaskRow({ task, lifeArea, now, onClose }: TaskRowProps) {
+export function TaskRow({ task, lifeArea, now, onClose, onStartFocus }: TaskRowProps) {
   const done = task.status === 'done';
   const effort = effortLabel(task.focusDurationSeconds);
   const [offset, setOffset] = useState(0);
@@ -95,14 +97,26 @@ export function TaskRow({ task, lifeArea, now, onClose }: TaskRowProps) {
             <Check className="size-6" />
           </span>
         ) : (
-          <button
-            type="button"
-            aria-label="Close task"
-            onClick={() => onClose(task)}
-            className="spring flex size-11 shrink-0 items-center justify-center text-label-tertiary hover:text-state-go"
-          >
-            <Circle aria-hidden="true" className="size-6" />
-          </button>
+          <>
+            {onStartFocus ? (
+              <button
+                type="button"
+                aria-label="Start focus sprint"
+                onClick={() => onStartFocus(task)}
+                className="flex size-11 shrink-0 items-center justify-center text-accent"
+              >
+                <Play aria-hidden="true" className="size-4" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              aria-label="Close task"
+              onClick={() => onClose(task)}
+              className="spring flex size-11 shrink-0 items-center justify-center text-label-tertiary hover:text-state-go"
+            >
+              <Circle aria-hidden="true" className="size-6" />
+            </button>
+          </>
         )}
       </div>
     </li>

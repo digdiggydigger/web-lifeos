@@ -7,6 +7,7 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { CaptureDetailPage } from '@/features/captures/CaptureDetailPage';
 import { CapturesPage } from '@/features/captures/CapturesPage';
 import { TokensPage } from '@/features/dev/TokensPage';
+import { FocusSprintPage } from '@/features/focus/FocusSprintPage';
 import { JournalPage } from '@/features/journal/JournalPage';
 import { LifeAreaEditorDetailPage } from '@/features/lifeAreaEditor/LifeAreaEditorDetailPage';
 import { LifeAreaEditorListPage } from '@/features/lifeAreaEditor/LifeAreaEditorListPage';
@@ -43,6 +44,7 @@ export const appRoutes: RouteObject[] = [
           { path: 'today', element: <TodayPage /> },
           { path: 'today/week-review', element: <WeekReviewPage /> },
           { path: 'nudges', element: <NudgesPage /> },
+          { path: 'focus', element: <FocusSprintPage /> },
           { path: 'tasks', element: <TasksPage /> },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
           { path: 'areas', element: <AreasPage /> },

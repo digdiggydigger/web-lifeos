@@ -1,9 +1,10 @@
-/** `focus_sessions/{id}` (`Focus/FocusModels.swift` `CompletedFocusSession`): snake_case. Read-only until Phase 2. */
+/** `focus_sessions/{id}` (`Focus/FocusModels.swift` `CompletedFocusSession`): snake_case; a re-save with `confirmed_at` upserts the same id. */
 import { z } from 'zod';
 
 import type { CompletedFocusSession } from '@/domain/types';
 
 import { omitUndefined } from '../fields';
+import { toTimestamp } from '../time';
 import { documentId, timestamp } from './common';
 import type { DocumentData } from './common';
 
@@ -41,5 +42,24 @@ export function decodeFocusSession(data: DocumentData): CompletedFocusSession {
     latitude: doc.latitude,
     longitude: doc.longitude,
     confirmedAt: doc.confirmed_at,
+  });
+}
+
+export function encodeFocusSession(session: CompletedFocusSession): DocumentData {
+  return omitUndefined({
+    id: session.id,
+    task_title: session.taskTitle,
+    life_area_emoji: session.lifeAreaEmoji,
+    planned_seconds: session.plannedSeconds,
+    focused_seconds: session.focusedSeconds,
+    checkpoints_reached: session.checkpointsReached,
+    completed_naturally: session.completedNaturally,
+    started_at: toTimestamp(session.startedAt),
+    ended_at: toTimestamp(session.endedAt),
+    task_id: session.taskId,
+    place_id: session.placeId,
+    latitude: session.latitude,
+    longitude: session.longitude,
+    confirmed_at: session.confirmedAt ? toTimestamp(session.confirmedAt) : undefined,
   });
 }

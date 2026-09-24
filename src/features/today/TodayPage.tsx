@@ -20,8 +20,11 @@ import {
   streak,
   trailingWeekClosureFlags,
 } from '@/domain/momentum';
+import { planForTask } from '@/domain/focus';
 import { startOfDay } from '@/domain/time/calendar';
 import type { Task } from '@/domain/types';
+import { FocusAnalyticsSection } from '@/features/focus/FocusAnalyticsSection';
+import { useFocusStore } from '@/features/focus/useFocusStore';
 import { nudgesOf } from '@/features/nudges/nudgesStore';
 import { useNudgesStore } from '@/features/nudges/useNudgesStore';
 import { preferencesStore } from '@/features/settings/preferencesStore';
@@ -88,6 +91,10 @@ export function TodayPage() {
   const mutationError = useStore(store, (s) => s.mutationErrorMessage);
   const reorderError = useStore(store, (s) => s.reorderErrorMessage);
   const prefs = useStore(preferencesStore, (s) => s.preferences);
+  const focus = useFocusStore();
+  const activeSprint = useStore(focus, (s) => s.session);
+  const completedSprintCount = useStore(focus, (s) => s.completedSprintCount);
+  const seenSprintCount = useRef(completedSprintCount);
   const tracker = useRef(createDailyGoalTracker());
   const [announcement, setAnnouncement] = useState('');
   const now = new Date();
@@ -128,6 +135,13 @@ export function TodayPage() {
     );
     if (crossed) setAnnouncement(dailyGoalAnnouncement(ringCount, prefs.dailyGoal));
   }, [ringCount, settled, prefs.dailyGoal, prefs.countClearedCaptures, prefs.countNudges]);
+
+  // Every finished sprint refetches the history the charts and the logged-today chip read.
+  useEffect(() => {
+    if (seenSprintCount.current === completedSprintCount) return;
+    seenSprintCount.current = completedSprintCount;
+    void store.getState().load();
+  }, [completedSprintCount, store]);
 
   async function closeTask(task: Task): Promise<void> {
     if (!(await store.getState().close(task))) return;
@@ -202,6 +216,18 @@ export function TodayPage() {
                 isClosing={closingTaskId === headline.id}
                 loggedTodayLabel={focusLoggedTodayLabel(focusSessions, headline.id, now)}
                 onClose={() => void closeTask(headline)}
+                showsStartSession={activeSprint === undefined}
+                onStartSession={() =>
+                  focus
+                    .getState()
+                    .startPlan(
+                      planForTask(
+                        headline,
+                        headline.lifeAreaId ? areaById.get(headline.lifeAreaId) : undefined,
+                        prefs.defaultSprintMinutes * 60,
+                      ),
+                    )
+                }
               />
             ) : null}
             <LifeAreasSection
@@ -221,6 +247,11 @@ export function TodayPage() {
               />
             ) : null}
             <WeekReviewRow headline={review.headline} />
+            <FocusAnalyticsSection
+              sessions={focusSessions}
+              dailyGoalMinutes={prefs.focusDailyGoalMinutes}
+              now={now}
+            />
           </>
         ) : null}
       </div>
