@@ -4,10 +4,14 @@ import { useStore } from 'zustand';
 
 import { buildWeekReview } from '@/domain/momentum';
 import { addDays, startOfDay } from '@/domain/time/calendar';
+import { DailySummarySection } from '@/features/dailySummary/DailySummarySection';
+import { dueNudges, nudgesOf } from '@/features/nudges/nudgesStore';
+import { useNudgesStore } from '@/features/nudges/useNudgesStore';
 import { Card } from '@/shared/Card';
 import { EmptyState } from '@/shared/EmptyState';
 import { SectionLabel } from '@/shared/SectionLabel';
 
+import { activeAreas } from './homeStore';
 import { WeekBars } from './TodayCards';
 import { useHomeStore } from './useHomeStore';
 
@@ -39,6 +43,9 @@ export function WeekReviewPage() {
   const allTasks = useStore(store, (s) => s.allTasks);
   const inbox = useStore(store, (s) => s.inbox);
   const focusSessions = useStore(store, (s) => s.focusSessions);
+  const openTasks = useStore(store, (s) => s.openTasks);
+  const nudgesStore = useNudgesStore();
+  const nudgesState = useStore(nudgesStore, (s) => s.state);
   const now = new Date();
   const review = buildWeekReview({
     tasks: allTasks,
@@ -107,6 +114,14 @@ export function WeekReviewPage() {
               </ul>
             </section>
           ) : null}
+          <DailySummarySection
+            counts={{
+              openTasks: openTasks.length,
+              lifeAreas: activeAreas(lifeAreas).length,
+              inbox: inbox.length,
+              dueNudges: dueNudges(nudgesOf({ state: nudgesState }), now).length,
+            }}
+          />
         </div>
       ) : null}
     </>
