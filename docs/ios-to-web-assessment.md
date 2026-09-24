@@ -1,0 +1,279 @@
+# ADHD LifeOS: what an iOS → web conversion would take
+
+## Context
+
+You asked what it would take to turn your iOS Swift app, **ADHD LifeOS** (`digdiggydigger/ADHDLifeOS`), into a web version, with the answer grounded in the actual code. The target repo `digdiggydigger/web-lifeos` is empty, so this is a green-field web client, not a modification of an existing one.
+
+This document is the assessment. It is not yet an implementation plan for `web-lifeos`; if you want that next, the "Recommended approach" section is the starting point and I can turn it into a build plan.
+
+Per your instruction, the old `es-life-os` Vercel project and the `Es_Life_OS` repo are ignored throughout. Everything below comes from the `ADHDLifeOS` repo (cloned read-only at its current `main`), its Firebase configuration, and current Firebase web SDK docs.
+
+## The single most important fact
+
+**The backend is already web-ready.** The app has no local persistence layer; Firestore is the source of truth, behind Firebase Auth, Firebase Storage, and two Cloud Functions (project `adhdlifeos-acb49`). Firebase ships a first-class JavaScript SDK, and the security rules in `firestore.rules` / `storage.rules` are enforced server-side, so a web client signs in as the same user and reads and writes the same documents with no server work.
+
+That changes the shape of the job. You are **not** porting a Swift backend. You are rebuilding the **client**: the screens, the pure logic that lives inside the Swift app, and substitutes for the handful of iPhone-only capabilities.
+
+## Size of what exists (measured)
+
+| Target | Swift LOC | Notes |
+|---|---|---|
+| `ADHD LifeOS/` (the app) | 54,622 | 21 feature directories, ~380 files |
+| `ADHD LifeOSTests/` | 60,943 | 2,497 unit tests; ~25% app coverage, ~15K of the uncovered lines are SwiftUI view bodies |
+| `ADHD LifeOSUITests/` | 6,374 | Skipped in the standard run |
+| `FocusTimerWidget/` | 2,086 | Widgets + Live Activities. Not portable (see below) |
+
+Feature directories by size: Places 9.5K, Capture 6.6K, Focus 6.2K, Home 5.7K, Tasks 4.4K, Journal 2.8K, Theme 2.7K, Firebase 1.9K, Nudges 1.7K, Celebrations 1.4K, Settings 1.4K, Auth 1.2K, RecentlyDeleted 1.2K, LifeAreaEditor 1.0K, then TagEditor, LifeAreaDetail, Undo, Tools, Areas, Reminders, Shortcuts.
+
+## What the backend contract looks like (what a web client must honour)
+
+Sources: `firestore.rules`, `storage.rules`, `ADHD LifeOS/Firebase/FirebaseManager*.swift`, `ADHD LifeOS/Firebase/FirestoreFieldPayloads.swift`, the per-feature `*Models.swift` files, and `functions/`.
+
+**Good news, in order of how much work it saves:**
+
+1. **Security is server-side and already correct for a second client.** Per-user isolation under `users/{uid}`, an explicit allow-list of nine CRUD subcollections, two append-only collections (`logs`, `location_events`: update denied), and a read-only `catalog/`. A web client signs in and gets exactly the same access as the phone. Nothing to change.
+2. **No listeners, no composite indexes.** Every iOS read is a one-shot `getDocuments`, and every query filters or orders on a single field. A web client can reuse the same queries verbatim, and can *add* `onSnapshot` real-time listeners for free (the phone would not see web edits until its next fetch, which is the existing behaviour anyway).
+3. **The schema is fully documented in code and small.** Eleven subcollections plus a profile doc. The explorer produced a field-by-field table; the TypeScript types for a web client can be written straight from `TaskModels.swift`, `HomeModels.swift`, `CaptureModels.swift`, `LogModels.swift`, `NudgeModels.swift`, `FocusModels.swift`, `PlaceModels.swift`, `PlaceActionModels.swift`, `LocationEventModels.swift`, `RoutineRunRecord.swift`, `TagModels.swift`.
+
+**The traps a web client must get right, because nothing server-side enforces them:**
+
+| Convention | Detail | Why it matters |
+|---|---|---|
+| Document IDs | UPPERCASE UUID strings, duplicated in an `id` field; the two must match | iOS addresses docs by the decoded `id`; a mismatch silently breaks triage |
+| UUID references | `life_area_id`, `tag_ids[]`, `place_id`, etc. are also uppercase | Queries are exact-match; lowercase never matches |
+| Dates | Firestore `Timestamp`, never ISO strings or numbers (the dormant `reminders` collection is the one exception) | iOS decodes `Timestamp` only |
+| Field naming | **Two conventions coexist on purpose.** Tasks, logs, nudges, places, focus_sessions, routine_runs are snake_case (`life_area_id`, `deleted_at`). Captures are camelCase (`lifeAreaId`, `mediaURL`, `deletedAt`, `clearedAt`) except `created_at` and `tag_ids` | A wrong key raises no error; it writes a field nothing reads |
+| Absent optionals | Omitted, never `null`. Clearing a field uses `FieldValue.delete()` | Soft-delete "restore" must *delete* `deleted_at`, not null it |
+| Strict decoding | iOS decodes lists with `map { try }`: one document with an unknown enum value or missing required field **fails the whole list fetch on the phone** | A web bug could blank a screen on iOS. Write only known enum values; always write `created_at` / the `orderBy` field |
+| Whole-doc overwrite | iOS `save()` uses `setData` without merge for places, focus sessions and life areas | Any extra field the web adds to those docs is wiped on the next iOS edit |
+| `life_areas.colour` | Holds an **emoji**, not a colour. Optional `palette` key (`work|health|admin|growth|hobby|green|orange|red|slate`) drives the colour | Name is misleading |
+| Nudge `schedule` | A cron string `"M H * * d,d"`; day 0 = Sunday; time is device-local | Parser to port: `Nudges/NudgeScheduleParsing.swift` |
+| Paired writes | `status`+`completed_at`+location stamp in one update; `processed:true`+`clearedAt` together; inbox = `processed == false && seen != true` | Half-writes leave iOS in an inconsistent state |
+| Soft delete + purge | `deleted_at` stamp; 30-day purge runs **on iOS app launch** (`RecentlyDeleted/`) | Web must apply the same client-side filter; purge is fine to leave to the phone or duplicate |
+| Client-side uniqueness | Tag and life-area names unique case-insensitively; `sort_order` = max+1; reorder writes the full order in one batch | Duplicate on web if you want parity |
+
+**Auth:** email/password (live), password reset, Sign in with Apple (built, dormant). Account deletion is a client-orchestrated cascade (batch-delete 11 subcollections in chunks of 500, then Storage, then the profile doc, then the Auth user), see `FirebaseManager+AccountDeletion.swift`. All of this maps 1:1 onto the Firebase JS SDK.
+
+**Storage:** only capture media, at `users/{uid}/captures/{lowercase-uuid}.{ext}`, JPEG photos and M4A voice notes, 25 MB cap, permanent download URL stored as `mediaURL`. Portable as-is; the browser can record audio (WebM/Opus rather than M4A, which the phone would then have to play).
+
+**Cloud Functions (`functions/`), the one place with real backend work:**
+
+- Both are 2nd-gen HTTP `onRequest` functions deployed with `cors: false`, so a **browser call fails CORS preflight today**.
+- `dailySummary` (POST, Bearer Firebase ID token, client builds the whole payload, calls Claude and returns a structured summary): usable from the web once CORS origins are added and it is redeployed, or via a same-origin Firebase Hosting rewrite. The payload builder to port is `DailySummaryRequest` in `Home/DailySummaryModels.swift`.
+- `capture` (POST, shared secret `X-LifeOS-Key`, writes to **one hard-coded UID** via `CAPTURE_UID`): it exists for the iOS Shortcut. A web client should not use it; it should write captures directly to Firestore and Storage like the app does.
+
+**Seeding (`FirebaseManager+Seed.swift`):** runs on the *client* after sign-up or session restore: six life areas, five tags, three tasks, one welcome log, then `seeded_at`. A web client must either port this (~100 lines) or accept that a web-first account stays empty until the phone signs in. Note the trap: if the web creates any life area first, iOS will never seed.
+
+**Device-local state that is not in Firestore at all:** the Daily Summary cache, momentum and daily-goal preferences, the live routine run, arrival cooldowns, the app-directory cache, and the in-progress focus sprint all live in UserDefaults. The web gets its own copies (localStorage or new Firestore fields); they will not sync with the phone unless you promote them to Firestore, which is a schema decision, not a port.
+
+## Apple-only capabilities: portable, substitutable, or not portable
+
+Audit of every `import` across 447 Swift files, the entitlements, `Info.plist`, and the usage-description build settings in `project.pbxproj`.
+
+**Headline:** only three things cannot exist in a browser at all. Two more keep working only while a tab is open unless you add server-side Web Push. Everything else maps onto a browser API or the Firebase JS SDK.
+
+### Cannot be ported (about 5K LOC genuinely Apple-bound)
+
+| Capability | Where | What it does today | Web reality |
+|---|---|---|---|
+| **Background geofencing** | `Places/CoreLocationTriggerMonitor.swift`, `LocationTriggerService.swift`, `PlaceTriggerEventHandler.swift`, `UIBackgroundModes=location` | One circular region per place (20-region cap with nearest-20 re-pick). iOS relaunches the app in the background on a crossing; the handler writes `location_events`, applies a 30-min cooldown, runs journal/capture actions, posts the routine banner and arrival nudge, records the `routine_runs` offer | Browsers have no geofencing and no background wake. The entire trigger engine (~1.7K LOC) has no equivalent. Substitutes: a manual "I'm here" button running the same handler in the foreground; or keep the phone as the trigger source and let the web *display* routines and events |
+| **Widgets + Live Activities** | `FocusTimerWidget/` (2,086 LOC), `Focus/FocusActivityKitMirror.swift`, `Places/RoutineActivityKitPresenter.swift`, `Focus/FocusWidgetPublishing.swift` | Sprint Live Activity with pause/resume/stop, routine Live Activity, Focus Stats widget, Life Areas widget, Quick Capture widget (deep links `adhdlifeos://widget/capture/<kind>`) | No equivalent. Partial: PWA manifest shortcuts, a sticky in-page timer, countdown in the tab title, Document Picture-in-Picture (Chromium only) |
+| **App Intents / Siri** | `Shortcuts/LifeOSAppIntents.swift`, `ShortcutIntentRunner.swift` (193 LOC) | Capture note, journal line, start sprint, Siri phrases; building blocks for Shortcuts location automations | No equivalent. Substitutes: the existing HTTP `capture` function (already web-friendly), a PWA Web Share Target, or URL parameters |
+
+### Works only while a tab is open, unless you build Web Push
+
+The app sends **no push notifications** today: no FirebaseMessaging, no `aps-environment` entitlement, no remote-notification background mode. Every notification is scheduled locally on the device.
+
+| Producer | File | iOS mechanism | Web |
+|---|---|---|---|
+| Nudges (weekly recurring) | `Nudges/NotificationCenterNudgeAdapter.swift` | Repeating calendar trigger per weekday | Needs a server scheduler (Cloud Scheduler + a function) sending FCM Web Push; service worker + VAPID key. On iOS Safari, only for a PWA installed to the Home Screen |
+| Focus sprint checkpoints and completion | `Focus/NotificationCenterFocusNudgeAdapter.swift`, `FocusNotificationPlanning.swift` | Time-interval triggers queued at sprint start, time-sensitive | In-tab `Notification` API while open; Web Push for closed-tab delivery. No "time-sensitive" equivalent |
+| Routine banner and its tap flow | `Places/PlaceRoutineNotificationContent.swift`, `RoutineActivation.swift` | The whole routine run travels inside the notification payload; tap writes `started` to `routine_runs` and saves the live run to UserDefaults | Payload can ride in the push `data`; handled in the service worker's `notificationclick`. Only meaningful if the trigger exists, which it does not on the web |
+
+### Portable with a substitute (the bulk of the app)
+
+| iOS | Web substitute | Notes |
+|---|---|---|
+| Firebase iOS SDK (Auth, Firestore, Storage) | Firebase JS SDK (modular) | 1:1. Add `persistentLocalCache` for offline reads |
+| Email/password + password reset; Sign in with Apple (off) | Same Firebase Auth methods; Apple via the `apple.com` OAuth provider (popup/redirect) | `Auth/AppleSignInNonce.swift` becomes unnecessary; Firebase handles the nonce on web |
+| One-shot location fix (`Places/CoreLocationFixProvider.swift`) for stamping captures/logs/tasks/sprints and the Home arrival card | `navigator.geolocation.getCurrentPosition` | Foreground only, which is all these uses need |
+| MapKit place picker + address autocomplete (`PlaceMapPicker.swift`, `MapKitAddressProvider.swift`) | Leaflet + OpenStreetMap/Nominatim, Mapbox, or Google Maps + Places Autocomplete | Choose based on cost; Leaflet is free |
+| Voice capture: AVAudioRecorder → `.m4a` → on-device Speech transcription (mandatory: no transcript, no upload) | `MediaRecorder` (webm/opus on Chrome, mp4/aac on Safari) → upload → **server-side speech-to-text** | Web Speech API cannot transcribe a file. This is a **new Cloud Function** (Google Speech-to-Text or similar). The phone would also need to play whatever format the browser recorded |
+| Photo picker + camera (`CameraCapturePicker.swift`, `PhotoCaptureImageProcessing.swift`) | `<input type="file" accept="image/*" capture>` + canvas downscale to JPEG | Easy |
+| Haptics (`Theme/Haptics.swift`, ~61 call sites) | Dropped. `navigator.vibrate` is unsupported on Safari | Keep the Settings toggle as a no-op or hide it |
+| Reduce Motion (~20 files) | `prefers-reduced-motion` media query | Same policy carries over: fade, never hard-cut |
+| VoiceOver announcements (`UIAccessibility.post`) | `aria-live` region | |
+| Celebrations: confetti (CoreGraphics), chime (AVFoundation) | Canvas confetti, Web Audio (subject to autoplay rules) | `CelebrationPolicy` / `CelebrationQueue` logic is pure and ports as-is |
+| Swift Charts (`ProductivityTrendChart.swift`, `WeeklyFocusSummaryWidget.swift`) | Recharts / Chart.js / Observable Plot | |
+| Focus timer persistence across app kill (`Focus/FocusSprintPersistence.swift`, UserDefaults) | localStorage; wall-clock deadline logic is pure | Loses the Lock Screen countdown only |
+| Device-local preferences (`Home/MomentumPreferences.swift`: daily goal, streaks, haptics, sound, sprint length, celebrations, etc.; `settings.appearance`) | localStorage, **or promote to Firestore under `users/{uid}` so they sync with the phone** | A schema decision; today preferences do not sync between iOS devices either |
+| Clipboard copy (Daily Summary) | Clipboard API | |
+| UIKit gesture observers (`Theme/KeyboardTapAway.swift`, `CaptureDiscPanObserver.swift`, `AppScrollOffsetObserver.swift`) | DOM scroll/pointer events, CSS | Rewrite, small |
+| Custom `AppTabBar` (six items) | A bottom nav on mobile widths, a sidebar on desktop | Design decision, see below |
+| Place actions: open app by URL scheme (45-scheme bundled directory, `canOpenURL` install check), text a contact (ContactsUI), `sms:` | `https` and `sms:` links work; custom schemes are unreliable from a browser and there is no installed-app check; Contact Picker API is Android Chrome only (type the number instead) | The `catalog/app_directory` is still readable; the web just cannot verify installs |
+| Deep links (`adhdlifeos://…`, `AppDeepLink.swift`) | URL routes | |
+
+### Portable as-is (pure Swift → TypeScript, no platform dependency)
+
+Tasks, Journal, RecentlyDeleted, LifeAreaEditor, LifeAreaDetail, TagEditor, Undo (custom single-slot, not UIKit's UndoManager), Tools, Areas, Reminders (dormant), and roughly 3.5K LOC of Places domain logic (models, routine-run lifecycle/record/timeline/completion, place validation, geometry).
+
+### Portability by directory
+
+| Directory | LOC | Verdict |
+|---|---|---|
+| Places | 9,537 | Mixed: ~1.7K trigger engine **not portable**; ~1.7K iOS-shaped logic (20-region cap, cooldowns, notification payloads, scheme directory); ~2.6K views and ~3.5K domain logic **port** |
+| Capture | 6,578 | Substitute (recorder, file input; transcription needs a server function) |
+| Focus | 6,185 | Substitute (loses Live Activity and closed-tab checkpoint alerts) |
+| Home | 5,723 | Substitute (Geolocation for the arrival card; drop widget publishing) |
+| Tasks | 4,409 | As-is |
+| Journal | 2,842 | As-is |
+| Theme | 2,678 | Substitute (tokens port; gesture observers rewritten; haptics dropped) |
+| Firebase | 1,884 | Substitute (JS SDK, 1:1) |
+| Nudges | 1,736 | Substitute (editing is fine; firing needs Web Push) |
+| Celebrations | 1,435 | Substitute (canvas + Web Audio) |
+| Settings | 1,394 | Substitute |
+| Auth | 1,204 | Substitute |
+| RecentlyDeleted, LifeAreaEditor, LifeAreaDetail, TagEditor, Undo, Tools, Areas, Reminders | 6,665 | As-is |
+| Shortcuts | 193 | **Not portable** |
+| App root (`ADHD_LifeOSApp.swift`, `RootView.swift`, `AppDeepLink.swift`…) | 2,159 | Substitute (notification routing → service worker; deep links → routes) |
+| FocusTimerWidget | 2,086 | **Not portable** |
+
+## Feature inventory: what the web app has to reproduce
+
+### The six tabs (custom `AppTabBar`, `ADHD LifeOS/Theme/AppTabBar.swift`)
+
+| Tab | Root view | What it shows |
+|---|---|---|
+| Today | `Home/HomeView.swift` | Arrival or live-routine card, momentum ring + streak + week dots, best-next-move card, collapsible life-areas list with reorder, due-now rows, nudges due, inbox peek, closed today, weekly chart, week review, AI daily summary, focus analytics, gear → Settings sheet |
+| Tasks | `Tasks/TaskListView.swift` | Momentum / Open / Done / All chips; Momentum groups Due today / Tomorrow / Closed today; bottom search; create; swipe-to-close; detail with autosave, tags, at-place, sprint planner |
+| Areas | `Areas/AreasView.swift` | Two-column area cards, Unfiled, week-share bar → `LifeAreaDetailView` (Tasks / Journal / Captures / All filters) |
+| Journal | `Journal/JournalView.swift` | One day-grouped timeline of 8 entry kinds (logs, journal entries, closed tasks, sprints, captures, location events, routine rows); compose disc → `LogComposerView` (energy, mood, area, tags, location) |
+| Captures | `Capture/CaptureInboxView.swift` | To triage / Sorted / Promoted; triage card with area chips and the verbs Sorted, Skip, Journal it, Task it, Delete; detail; promote sheet |
+| Tools | `Tools/ToolsView.swift` | Places, Life Areas, Routines, Recently Deleted |
+
+**Shared overlays outside any tab:** capture disc + five-kind fan (note, task, link, voice, photo), bottom search row, `FocusTimerBar` + completion card stack, `UndoCapsule`, journal compose disc, `CelebrationLayer`. Plus `LoginView` (email/password, sign-up with name, forgot password) and `SettingsView` as a sheet.
+
+**Dead on iOS, skip on web:** `Reminders/RemindersView` has no call site anywhere; it is a leftover from the retired Poke/DynamoDB bridge.
+
+### The pure logic: the real spec, and most of it has unit tests to port
+
+The app keeps its rules in pure `enum`/`struct` types outside the views, which is the best thing about it for a port: each of these is a TypeScript module plus a ported test file, not a reverse-engineering job. The most important ones:
+
+| Area | File (under `ADHD LifeOS/`) | Rule |
+|---|---|---|
+| Momentum | `Home/MomentumScoreboard.swift` | Streak (consecutive days with a closure; starts from yesterday if today is empty), ring progress, best-next-move (due/overdue first, then shortest effort, then priority), area rate, rolling 7-day window |
+| Momentum | `Home/ActiveGoalSelection.swift`, `Home/DailyGoalTracker.swift`, `Home/MomentumWeekReview.swift`, `Home/MomentumWeekCharts.swift` | Top-task choice, goal-crossing detection, week review copy, per-day counts and bars |
+| Daily summary | `Home/DailySummaryModels.swift` | `DailySummaryRequest` (what counts as "today"), `StubDailySummaryGenerator` (on-device fallback), four tones |
+| Tasks | `Tasks/MomentumTaskBuckets.swift`, `TaskStatusFilter.swift`, `TaskListRefinement.swift`, `TaskModels.swift` (`TaskCompletionStamp`), `TaskCreateValidation.swift`, `TaskUpdateValidation.swift`, `TaskDetailAutosave.swift`, `TagDedup.swift` | Buckets, filters, search, completion stamping, validation, autosave condition |
+| Captures | `Capture/CaptureTriage.swift`, `CaptureSkipOrdering.swift`, `CaptureListRefinement.swift`, `CaptureInboxSummary.swift`, `ComposerDraftFiling.swift`, `CaptureValidation.swift`, `LinkPasteNormalization.swift` | Triage state machine, skip-to-back ordering, headlines, draft filing |
+| Journal | `Journal/JournalTimeline.swift` (+`+RoutineRows`), `LogSorting.swift`, `LogValidation.swift` | The merged 8-kind timeline; energy/mood only on journal type |
+| Nudges | `Nudges/NudgeScheduleParsing.swift`, `NudgeDueness.swift`, `NudgeStreak.swift`, `NudgeSchedulePreset.swift`, `NudgeValidation.swift` | Cron subset parse/encode/summarise, `isNudgeDue`/`nextFire` in local time, streak maths |
+| Focus | `Focus/FocusModels.swift`, `FocusNudgeCadence.swift`, `FocusSprintConfiguration.swift`, `FocusAnalytics.swift`, `FocusSprintPersistence.swift`, `FocusSessionService*.swift` | Checkpoint advance/replan, cadence rules (30s floor, ≤60s → 1 nudge), clamps, analytics buckets, deadline-based timing |
+| Celebrations | `Celebrations/CelebrationPolicy.swift`, `CelebrationBurst.swift` (`CelebrationQueue`), `CelebrationCenter.swift`, `CelebrationDayMarking.swift` | Switch policy, caps (3 full-screen / 8 pops), hold-while-sheet-open, once-per-day-per-milestone |
+| Undo | `Undo/RecentAction.swift`, `RecentActionCenter.swift` | One slot, newest replaces, no timeout, 9 action kinds |
+| Recently Deleted | `RecentlyDeleted/SoftDelete.swift`, `RecentlyDeletedPresentation.swift`, `RecentlyDeletedService.swift` | 30-day retention, days-remaining rounds up, tag survivor choice, purge |
+| Routines | `Places/RoutineRun.swift` (`RoutineRunLifecycle`), `RoutineRunRecord.swift`, `RoutineActivation.swift`, `RoutineRunReconciliation.swift`, `PlaceRoutinePlan.swift` | offered → started → ended state machine, dismiss/expire, end reasons, arrival run lives to end of day, departure 30 min, ≥2 tap-steps makes a routine |
+| Places | `Places/PlaceActionModels.swift`, `PlaceActionEditing.swift`, `PlaceModels.swift` | Open-ended action catalogue where unknown kinds survive re-save; radius clamp |
+| Editors | `LifeAreaEditor/LifeAreaEditorValidation.swift`, `TagEditor/TagEditorValidation.swift`, `Areas/AreasGrid.swift`, `LifeAreaDetail/AreaDetailPresentation.swift` | Validation and presentation |
+| Settings | `Home/MomentumPreferences.swift`, `Settings/AppearancePreference.swift`, `Auth/AuthFormValidation.swift` | Preference normalisation, form validation |
+
+One thing to know before porting: the 61K-line test suite is the spec for all of the above. Porting the tests alongside the logic is how you keep the two clients agreeing on what a streak or a due nudge is.
+
+### Design tokens (portable to CSS custom properties directly)
+
+`ADHD LifeOS/Assets.xcassets` holds every colour with light and dark variants: `PageBackground`, `CardSurface`, `CardSurfaceSecondary`, `CardBorder`, `Scrim`, `LabelPrimary/Secondary/Tertiary`, `TrackNeutral(Strong)`, `StateGo/Warn/Risk` (+Vivid, +On), nine `Area<X>` families (base, Vivid, Tint, On), the `JournalPaper*` family, `AccentColor` (system blue). `Theme/Theme.swift` defines `.bentoCard()` (16pt radius, 1pt border, 3% shadow), `sectionLabel()`, `UrgencyPalette`; `Theme/AreaPalette.swift` maps emoji → family. Spacing is 4/8/16/24 only; 44pt targets; spring 0.35/0.8; fades under reduced motion. Fonts are system (SF), so the web would use the system font stack. All of this transfers as a token file; the CLAUDE.md §1–§7 design rules transfer as the web repo's rules with `pt` → `px` and `#available` → feature detection.
+
+## The archived React prototype (`legacy/`): reference only
+
+10,313 LOC across 25 files: React 18, Vite 6, TypeScript, Tailwind v4, `motion`, `recharts`, Express + Gemini for the summary. It was a Google AI Studio build. **It has no auth and no database**; state is `localStorage`. Its data model predates the current one (priority low/medium/high vs p1–p4; status todo/in_progress/completed vs open/done; area colour as a Tailwind name vs emoji + palette; no link/task capture kinds; nudge `isDue` flags instead of cron). Components are 500–1,200-line monoliths fed by one prop-drilled hook, with 644 hard-coded hex literals of a coral palette the app has since dropped. No tests.
+
+**Verdict: under 10% reusable.** The stack choice is sound and I recommend the same family below. The code is not a starting point; the Swift pure-logic files above are. Worth lifting as patterns only: `utils/audioProcessor.ts` (MediaRecorder), the `QuickCaptureModal.tsx` mic/waveform handling, and the `recharts` chart shapes.
+
+Features the SwiftUI app has that the prototype never had: auth and accounts, Firebase sync, Areas tab and area detail, the whole momentum scoreboard, Places/routines/arrival card/location stamping, place actions and the app directory, Tools tab, celebrations, undo, soft delete, tag and area editors, link/task captures and the triage verbs, cron nudges, focus persistence and confirm stack, the unified journal timeline, the preference set, bottom search.
+
+## Recommended approach
+
+### Posture: build a companion first, not a replacement
+
+The phone is the only device that can run geofences, Live Activities, widgets, and closed-app notifications. Those are the ADHD-specific "it comes to you" half of the product. A web version that tries to replace them ships worse versions of them. A web version that treats the phone as the trigger source and gives you a full-size, keyboard-driven surface for **everything else** (triage, planning, journaling, reviewing, editing places and routines, the focus timer at a desk) is a genuinely better product for those tasks and needs no new backend.
+
+Concretely: the web app reads and writes the same eleven collections; routine runs the phone started appear in the web Journal and can be worked on the web routine screen; place crossings still come from the phone. Web Push, server transcription, and web-side routine triggering are a later, optional phase, and each is a new backend piece rather than a port.
+
+### Stack
+
+| Layer | Recommendation | Why |
+|---|---|---|
+| Framework | **Vite + React + TypeScript**, built as an installable PWA (`vite-plugin-pwa`) | Firebase is a client SDK; there is nothing to server-render. A PWA is also the only route to Web Push on iOS Safari later. Next.js adds SSR/server-action machinery this app has no use for |
+| Styling | Tailwind v4 with the iOS colour sets as CSS custom properties (light/dark via `prefers-color-scheme` plus the in-app override the iOS app already has) | Mirrors the token layer; keeps the "no hex outside the token file" rule |
+| Routing | TanStack Router or React Router, one URL per screen the iOS app has as a tab, push, sheet, or cover | Deep links become real URLs; back button works |
+| Data | Firebase JS SDK (modular): Auth, Firestore with `persistentLocalCache` + `persistentMultipleTabManager`, Storage | Offline reads in the browser; identical rules; identical documents |
+| State | `onSnapshot` listeners per collection into a small store (Zustand or TanStack Query with Firestore subscriptions) | Real-time on web for free; the phone stays fetch-on-demand as today |
+| Charts | Recharts | Swift Charts equivalents for the trend and weekly summary |
+| Maps | Leaflet + OpenStreetMap (free) or Google Maps + Places Autocomplete (costs money, better addresses) | Replaces `PlaceMapPicker` and `MapKitAddressProvider` |
+| Tests | Vitest for ported pure logic; Firebase Emulator Suite (already configured in `firebase.json` with the real rules) for the data layer; Playwright for journeys | Same TDD bar as the iOS repo |
+| Lint | ESLint + Prettier + `tsc --noEmit` in CI | The SwiftLint equivalent |
+| Hosting | **Firebase Hosting** in project `adhdlifeos-acb49`, with a same-origin rewrite to the `dailySummary` Cloud Run service | Avoids touching the functions' CORS at all, one project, and your Firebase CLI is already authenticated. Vercel works too; then `dailySummary` needs CORS enabled and redeployed |
+
+### Architecture: mirror the iOS seam
+
+The iOS app's best structural decision is that adapters depend on narrow `*BackingStore` protocols, never on `FirebaseManager`, and hand-written field dictionaries live in one place. Copy that shape:
+
+```
+web-lifeos/
+  src/
+    domain/        pure TS ported from the Swift pure-logic files, with ported tests (no Firebase imports)
+      tasks/  captures/  journal/  nudges/  focus/  momentum/  celebrations/  undo/  softDelete/  routines/  places/
+    data/
+      codec/       ONE place for the conventions: uppercase UUIDs, Timestamp, omit-not-null, per-collection field names
+      repos/       one repository per collection with the exact queries iOS runs (+ onSnapshot variants)
+      seed.ts      port of FirebaseManager+Seed
+      auth.ts      email/password, reset, (later) apple.com provider, account-deletion cascade
+    features/      screens, one folder per iOS feature directory
+    theme/         tokens.css (the colour sets), spacing, motion, reduced-motion helpers
+    app/           router, shell (bottom nav ≤ tablet, sidebar on desktop), providers, service worker
+  firebase.json    hosting + emulators (extend the existing one, or copy it)
+```
+
+The `data/codec` layer is where the strict-decoding risk is contained: it is the only code that knows `deletedAt` vs `deleted_at`, and its tests assert the wrong spelling is absent, exactly as the iOS `FirestoreFieldPayloads` tests do.
+
+### Two things to set up outside the code (your job by the repo's own convention)
+
+1. **Register a Web App in the Firebase console** for `adhdlifeos-acb49` and copy its config object into the web repo. The iOS `GoogleService-Info.plist` identifiers are not a web config. Add the hosting and any custom domain to **Auth → Authorized domains**.
+2. **Decide the `dailySummary` exposure.** It has no per-user cap today (your register §D already flags this), and any account in the project can call it. A web client makes sign-ups easier, so a quota or App Check belongs in the phase that turns it on.
+
+## Effort and phasing
+
+Relative sizing against the iOS code; every phase leaves a working app.
+
+| Phase | Scope | Ported from | Relative size |
+|---|---|---|---|
+| **0. Foundations** | Repo scaffold, CI, tokens, shell + routing, Firebase init, emulator wiring, auth (sign in / up / reset / sign out), seeding port, the codec layer with its tests | `Auth/`, `Firebase/`, `Theme/`, `FirebaseManager+Seed` | Small. Unblocks everything |
+| **1. Core parity** | Tasks (list, buckets, search, create, detail, autosave, swipe/close), Life Areas + editor + detail, Tags + editor, Journal timeline + composer (append-only), Captures inbox + triage verbs + note/link/task/photo capture, Recently Deleted + purge, Undo capsule, Settings (local) | The "portable as-is" set (~13K LOC Swift) + Capture minus voice | Large. This is the companion app people would actually use |
+| **2. Today + Focus** | Momentum scoreboard, best-next-move, daily goal, week review, weekly chart, focus timer bar + sprint detail + completion/confirm stack + analytics, celebrations (canvas + Web Audio), nudges CRUD + due cards (in-tab notifications only), AI daily summary via the hosting rewrite | `Home/`, `Focus/`, `Celebrations/`, `Nudges/` (~15K LOC Swift) | Large |
+| **3. Places + Routines as viewer/editor** | Places list + editor with a web map + address search + radius, actions editor (https/sms only; scheme-based "open app" shown but not verifiable), routine plan, routine screen for runs the phone started, journal rows for location events and routines, Tools tab, arrival card from a foreground Geolocation fix, manual "I'm here" | `Places/` minus the trigger engine (~6K of 9.5K LOC) | Medium |
+| **4. Optional new backend** | Web Push (service worker + VAPID + a scheduled function for nudges and sprint checkpoints), server speech-to-text for voice captures, preferences promoted to Firestore for cross-device sync, App Check / quota on `dailySummary` | New code in `functions/` | Each item medium; none required for 0–3 |
+
+**Not in any phase, by design:** widgets, Live Activities, App Intents/Siri, background geofencing, haptics, time-sensitive notifications.
+
+For calibration: the iOS app reached 54.6K LOC of app code plus 61K of tests between late July and today with Claude Code driving under a strict TDD bar. The web equivalent of phases 0–3 is roughly 25–35K LOC of TypeScript plus tests, smaller than the Swift because the platform plumbing (notifications, ActivityKit, geofencing, UIKit observers) is gone and because the tests port rather than get discovered. Phase 1 alone is a usable daily tool.
+
+## Decisions you will need to make
+
+1. **Companion or replacement?** Recommended: companion (phases 0–3), with phase 4 items picked individually later.
+2. **Vite + React PWA or Next.js?** Recommended: Vite + React PWA, for the reasons above.
+3. **Firebase Hosting or Vercel?** Recommended: Firebase Hosting for the same-origin rewrite and single-project ops. Vercel is fine if you prefer its workflow; then `dailySummary` needs CORS.
+4. **Map provider:** Leaflet/OSM (free, adequate addresses) vs Google Maps (paid, best autocomplete).
+5. **Voice captures on web:** skip in phase 1 (photo/note/link/task only) or fund the server transcription function in phase 4.
+6. **Preferences sync:** keep device-local (parity with iOS today) or add a `users/{uid}/settings` document that both clients read. Recommended: add it in phase 2 and have iOS adopt it later; it fixes an existing iOS limitation too.
+7. **Repo discipline:** adopt the iOS repo's CLAUDE.md conventions (TDD, lint bar, pasted-output verification, design rules with pt → px) in `web-lifeos`. Recommended: yes, it is what made the iOS codebase portable.
+8. **Repo visibility:** `ADHDLifeOS` shows as **public** on GitHub today, while its CLAUDE.md says private and `GoogleService-Info.plist` is committed on that assumption. Firebase client identifiers are not secrets, but `functions/README.md` also prints the capture UID and Cloud Run URLs. Worth a deliberate decision either way.
+
+## Verification
+
+How the claims in this assessment were established, and how a build would be verified:
+
+- **Data contract:** read from `firestore.rules`, `storage.rules`, `FirebaseManager*.swift`, `FirestoreFieldPayloads.swift`, and every `*Models.swift`. No indexes file exists; every query is single-field.
+- **Apple-only inventory:** `grep '^import'` across all 447 app and widget Swift files, plus the entitlements, `Info.plist`, and the usage-description build settings in `project.pbxproj`. No push entitlement, no FirebaseMessaging, `UIBackgroundModes = location` only.
+- **Web SDK claims:** checked against current Firebase docs (Firestore `persistentLocalCache` with `persistentMultipleTabManager`; FCM web push via `register(messaging, {vapidKey})` and a service worker).
+- **For a build, the acceptance test that matters is cross-client:** write a task, capture, log, and life area from the web against the Emulator Suite with the real rules, then decode them with the iOS unit-test target's codec fixtures, and the reverse. A document the phone cannot decode blanks a whole list on iOS, so this test guards the phone, not just the web.
+- **Per phase:** Vitest green on the ported domain tests; emulator integration tests green; Playwright journey for the phase's screens; `tsc`, ESLint, Prettier clean; a real deploy to Firebase Hosting signed in as your account, with the same data visible on the phone afterwards.
