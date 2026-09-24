@@ -10,6 +10,7 @@ import { TokensPage } from '@/features/dev/TokensPage';
 import { JournalPage } from '@/features/journal/JournalPage';
 import { LifeAreaEditorDetailPage } from '@/features/lifeAreaEditor/LifeAreaEditorDetailPage';
 import { LifeAreaEditorListPage } from '@/features/lifeAreaEditor/LifeAreaEditorListPage';
+import { NudgesPage } from '@/features/nudges/NudgesPage';
 import { RecentlyDeletedPage } from '@/features/recentlyDeleted/RecentlyDeletedPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { TagEditorDetailPage } from '@/features/tagEditor/TagEditorDetailPage';
@@ -41,6 +42,7 @@ export const appRoutes: RouteObject[] = [
           { index: true, element: <Navigate to={HOME_PATH} replace /> },
           { path: 'today', element: <TodayPage /> },
           { path: 'today/week-review', element: <WeekReviewPage /> },
+          { path: 'nudges', element: <NudgesPage /> },
           { path: 'tasks', element: <TasksPage /> },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
           { path: 'areas', element: <AreasPage /> },

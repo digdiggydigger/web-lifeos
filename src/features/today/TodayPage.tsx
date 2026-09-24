@@ -22,6 +22,8 @@ import {
 } from '@/domain/momentum';
 import { startOfDay } from '@/domain/time/calendar';
 import type { Task } from '@/domain/types';
+import { nudgesOf } from '@/features/nudges/nudgesStore';
+import { useNudgesStore } from '@/features/nudges/useNudgesStore';
 import { preferencesStore } from '@/features/settings/preferencesStore';
 import { recentActionStore } from '@/features/undo/recentActionStore';
 import { EmptyState } from '@/shared/EmptyState';
@@ -30,6 +32,7 @@ import { BestNextMoveCard } from './BestNextMoveCard';
 import { activeAreas } from './homeStore';
 import { LifeAreasSection } from './LifeAreasSection';
 import { MomentumRingCard } from './MomentumRingCard';
+import { NudgesSection } from './NudgesSection';
 import {
   ClosedTodayCard,
   DueNowSection,
@@ -77,8 +80,9 @@ export function TodayPage() {
   const inbox = useStore(store, (s) => s.inbox);
   const inboxHandledToday = useStore(store, (s) => s.inboxHandledToday);
   const hasLoadedClearedCaptures = useStore(store, (s) => s.hasLoadedClearedCaptures);
-  const nudges = useStore(store, (s) => s.nudges);
-  const nudgesState = useStore(store, (s) => s.nudgesState);
+  const nudgesStore = useNudgesStore();
+  const nudgesState = useStore(nudgesStore, (s) => s.state);
+  const nudges = nudgesOf({ state: nudgesState });
   const focusSessions = useStore(store, (s) => s.focusSessions);
   const closingTaskId = useStore(store, (s) => s.closingTaskId);
   const mutationError = useStore(store, (s) => s.mutationErrorMessage);
@@ -95,7 +99,8 @@ export function TodayPage() {
     closedTodayTasks.length +
     (prefs.countClearedCaptures ? inboxHandledToday : 0) +
     (prefs.countNudges ? dismissedToday(nudges, now) : 0);
-  const settled = state.kind === 'loaded' && nudgesState === 'loaded' && hasLoadedClearedCaptures;
+  const settled =
+    state.kind === 'loaded' && nudgesState.kind === 'loaded' && hasLoadedClearedCaptures;
   const headline = bestNextMove(openTasks, now);
   const today = startOfDay(now).getTime();
   const dueNow = openTasks.filter(
@@ -205,6 +210,7 @@ export function TodayPage() {
               onMove={(id, direction) => void store.getState().moveActiveArea(id, direction)}
             />
             <DueNowSection tasks={dueNow} areaById={areaById} />
+            <NudgesSection now={now} />
             <InboxPeekCard inbox={inbox} handledToday={inboxHandledToday} now={now} />
             <ClosedTodayCard tasks={closedTodayTasks} />
             {prefs.showCharts ? (

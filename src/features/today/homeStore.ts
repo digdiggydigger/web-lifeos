@@ -1,6 +1,6 @@
 /**
  * `HomeService` (`Home/HomeService.swift`) plus the side inputs `HomeView` fetches itself
- * (`refreshInboxCount`, `refreshClearedCaptureCount`, the nudges and focus history): one store
+ * (`refreshInboxCount`, `refreshClearedCaptureCount`, the focus history): one store
  * behind Today and the week review.
  */
 import { createStore } from 'zustand/vanilla';
@@ -9,7 +9,7 @@ import type { StoreApi } from 'zustand/vanilla';
 import { completeOrder, countOpenTasksByLifeArea } from '@/domain/lifeAreas';
 import type { LifeAreaTaskCount } from '@/domain/lifeAreas';
 import { clearedToday } from '@/domain/momentum';
-import type { Capture, CompletedFocusSession, LifeArea, Nudge, Task } from '@/domain/types';
+import type { Capture, CompletedFocusSession, LifeArea, Task } from '@/domain/types';
 import { errorText } from '@/features/tasks/tasksClient';
 
 import type { HomeClient } from './homeClient';
@@ -18,8 +18,6 @@ export type HomeLoadState =
   | { readonly kind: 'loading' }
   | { readonly kind: 'loaded'; readonly counts: readonly LifeAreaTaskCount[] }
   | { readonly kind: 'failed'; readonly message: string };
-
-export type SideLoadState = 'loading' | 'loaded' | 'failed';
 
 export interface HomeState {
   readonly state: HomeLoadState;
@@ -36,8 +34,6 @@ export interface HomeState {
   readonly inboxHandledToday: number;
   /** Whether both cleared-capture fetches landed: the daily goal must tell "zero" from "unknown". */
   readonly hasLoadedClearedCaptures: boolean;
-  readonly nudges: readonly Nudge[];
-  readonly nudgesState: SideLoadState;
   readonly focusSessions: readonly CompletedFocusSession[];
   readonly load: () => Promise<void>;
   /** Persist a new ordering of the active areas; the payload is completed with the archived ones. */
@@ -66,11 +62,10 @@ export function createHomeStore(client: HomeClient, now: () => Date = () => new 
 
   return createStore<HomeState>((set, get) => {
     async function loadSideInputs(): Promise<void> {
-      const [waiting, seen, processed, nudges, sessions] = await Promise.allSettled([
+      const [waiting, seen, processed, sessions] = await Promise.allSettled([
         client.fetchUnprocessedCaptures(),
         client.fetchSeenCaptures(),
         client.fetchProcessedCaptures(),
-        client.fetchNudges(),
         client.fetchFocusSessions(),
       ]);
       const cleared = [
@@ -81,9 +76,6 @@ export function createHomeStore(client: HomeClient, now: () => Date = () => new 
         ...(waiting.status === 'fulfilled' ? { inbox: waiting.value } : {}),
         inboxHandledToday: clearedToday(cleared, now()),
         hasLoadedClearedCaptures: seen.status === 'fulfilled' && processed.status === 'fulfilled',
-        ...(nudges.status === 'fulfilled'
-          ? { nudges: nudges.value, nudgesState: 'loaded' as const }
-          : { nudgesState: 'failed' as const }),
         ...(sessions.status === 'fulfilled' ? { focusSessions: sessions.value } : {}),
       });
     }
@@ -143,8 +135,6 @@ export function createHomeStore(client: HomeClient, now: () => Date = () => new 
       inbox: [],
       inboxHandledToday: 0,
       hasLoadedClearedCaptures: false,
-      nudges: [],
-      nudgesState: 'loading',
       focusSessions: [],
       load: async () => {
         // Quiet reload: only the first load may show the loading state.

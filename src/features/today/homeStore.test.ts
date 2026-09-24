@@ -1,4 +1,4 @@
-// Port of HomeServiceTests, plus the web's side inputs (captures, nudges, focus) degrading independently.
+// Port of HomeServiceTests, plus the web's side inputs (captures, focus) degrading independently.
 import { describe, expect, it } from 'vitest';
 
 import type { Capture, LifeArea, Task } from '@/domain/types';
@@ -44,7 +44,6 @@ function fakeClient(
     fetchUnprocessedCaptures: () => Promise.resolve([]),
     fetchSeenCaptures: () => Promise.resolve([]),
     fetchProcessedCaptures: () => Promise.resolve([]),
-    fetchNudges: () => Promise.resolve([]),
     fetchFocusSessions: () => Promise.resolve([]),
     ...overrides,
   };
@@ -240,7 +239,7 @@ describe('homeStore', () => {
     expect(failing.getState().openTasks).toEqual([openWork]);
   });
 
-  it('side inputs: inbox and handled-today from captures, nudges state, focus sessions; each failure keeps the last known', async () => {
+  it('side inputs: inbox and handled-today from captures, focus sessions; each failure keeps the last known', async () => {
     const cap = (id: string, clearedDaysAgo?: number): Capture => ({
       id,
       content: id,
@@ -257,7 +256,6 @@ describe('homeStore', () => {
       fetchSeenCaptures: () =>
         seenFails ? Promise.reject(new Error('x')) : Promise.resolve([cap('s', 0)]),
       fetchProcessedCaptures: () => Promise.resolve([cap('p', 0), cap('q', 3)]),
-      fetchNudges: () => Promise.reject(new Error('rules')),
     });
     const store = createHomeStore(client, now);
     await store.getState().load();
@@ -265,7 +263,6 @@ describe('homeStore', () => {
     expect(s.inbox.map((c) => c.id)).toEqual(['a', 'b']);
     expect(s.inboxHandledToday).toBe(2);
     expect(s.hasLoadedClearedCaptures).toBe(true);
-    expect(s.nudgesState).toBe('failed');
     expect(s.state.kind).toBe('loaded');
 
     seenFails = true;

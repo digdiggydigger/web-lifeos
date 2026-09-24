@@ -1,19 +1,11 @@
-/** `HomeClientAdapting` plus the scoreboard's side inputs (captures, nudges, focus history), over the repos. */
+/** `HomeClientAdapting` plus the scoreboard's side inputs (captures, focus history), over the repos. Nudges have their own store. */
 import type { Firestore } from 'firebase/firestore';
 
 import * as captures from '@/data/repos/capturesRepo';
 import * as focus from '@/data/repos/focusSessionsRepo';
 import * as areas from '@/data/repos/lifeAreasRepo';
-import * as nudges from '@/data/repos/nudgesRepo';
 import * as tasks from '@/data/repos/tasksRepo';
-import type {
-  Capture,
-  CompletedFocusSession,
-  LifeArea,
-  Nudge,
-  Task,
-  TaskStatus,
-} from '@/domain/types';
+import type { Capture, CompletedFocusSession, LifeArea, Task, TaskStatus } from '@/domain/types';
 
 export interface HomeClient {
   /** Every area, archived ones included: the reorder payload and the pickers need them. */
@@ -27,7 +19,6 @@ export interface HomeClient {
   fetchUnprocessedCaptures(): Promise<Capture[]>;
   fetchSeenCaptures(): Promise<Capture[]>;
   fetchProcessedCaptures(): Promise<Capture[]>;
-  fetchNudges(): Promise<Nudge[]>;
   fetchFocusSessions(): Promise<CompletedFocusSession[]>;
 }
 
@@ -46,7 +37,6 @@ export function firebaseHomeClient(
     fetchUnprocessedCaptures: () => captures.fetchUnprocessedCaptures(db, uid),
     fetchSeenCaptures: () => captures.fetchSeenCaptures(db, uid),
     fetchProcessedCaptures: () => captures.fetchProcessedCaptures(db, uid),
-    fetchNudges: async () => (await nudges.fetchNudges(db, uid)).items.slice(),
     fetchFocusSessions: async () => (await focus.fetchFocusSessions(db, uid)).items.slice(),
   };
 }

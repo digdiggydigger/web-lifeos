@@ -1,5 +1,6 @@
 /** `Home/HomeInboxPeek.swift`, `HomeLifeAreasSection.swift`, `HomeNudgesSection.swift` (the parts that need no schedule maths). */
-import { formatShortTime, isSameDay } from '@/domain/time/calendar';
+import { nextFire } from '@/domain/nudges';
+import { daysBetween, formatShortTime, isSameDay } from '@/domain/time/calendar';
 import type { Capture, Nudge } from '@/domain/types';
 
 import type { AreaMomentum } from './momentumScoreboard';
@@ -100,4 +101,27 @@ export function nudgeUpcomingOverflowLine(scheduledCount: number): string | unde
   const hidden = scheduledCount - NUDGE_CARDS_MAX;
   if (hidden <= 0) return undefined;
   return hidden === 1 ? 'and 1 more scheduled' : `and ${hidden} more scheduled`;
+}
+
+/** "Today 18:00" / "Tomorrow 05:00" / "Mon 09:30": when this nudge next fires, measured from `now`; nothing when unparseable. */
+export function nudgeNextFireLine(nudge: Nudge, now: Date, locale?: string): string | undefined {
+  const next = nextFire(nudge, now);
+  if (!next) return undefined;
+  const clock = formatShortTime(next, locale);
+  const days = daysBetween(now, next);
+  if (days === 0) return `Today ${clock}`;
+  if (days === 1) return `Tomorrow ${clock}`;
+  return `${next.toLocaleDateString(locale, { weekday: 'short' })} ${clock}`;
+}
+
+/** The not-yet-due nudges that get a row, soonest first, at most three; paused and unparseable ones have no position to claim. */
+export function nudgesUpcoming(all: readonly Nudge[], due: readonly Nudge[], now: Date): Nudge[] {
+  const dueIds = new Set(due.map((n) => n.id));
+  return all
+    .filter((n) => !dueIds.has(n.id))
+    .map((nudge) => ({ nudge, fires: nextFire(nudge, now) }))
+    .filter((entry): entry is { nudge: Nudge; fires: Date } => entry.fires !== undefined)
+    .sort((a, b) => a.fires.getTime() - b.fires.getTime())
+    .slice(0, NUDGE_CARDS_MAX)
+    .map((entry) => entry.nudge);
 }

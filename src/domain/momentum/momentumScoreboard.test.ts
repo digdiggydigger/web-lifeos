@@ -43,6 +43,8 @@ import {
   nudgeChipText,
   nudgeCountLine,
   nudgeDoorSubtitle,
+  nudgeNextFireLine,
+  nudgesUpcoming,
   nudgeOverflowLine,
   nudgeScheduledCount,
   ringProgress,
@@ -498,5 +500,30 @@ describe('home sections', () => {
     expect(nudgeChipText(0, 4)).toBe('4 scheduled');
     expect(nudgeChipText(0, 0)).toBe('None yet');
     expect(FIRST_NUDGE_DIRECTIVE).toBe('Add your first nudge');
+  });
+  it('next-fire line names today, tomorrow, then the weekday; upcoming is soonest first, excluding due, paused and unparseable', () => {
+    // 14 Aug 2026 is a Friday.
+    const at = (schedule: string, active = true): Nudge => ({
+      ...nudge(undefined, active, 30),
+      schedule,
+    });
+    expect(nudgeNextFireLine(at('0 18 * * *'), now, 'en-GB')).toMatch(/^Today 18:00$/);
+    expect(nudgeNextFireLine(at('0 5 * * *'), now, 'en-GB')).toMatch(/^Tomorrow 0?5:00$/);
+    expect(nudgeNextFireLine(at('30 9 * * 1'), now, 'en-GB')).toMatch(/^Mon 0?9:30$/);
+    expect(nudgeNextFireLine(at('0 9 1 * *'), now, 'en-GB')).toBeUndefined();
+    expect(nudgeNextFireLine(at('0 18 * * *', false), now, 'en-GB')).toBeUndefined();
+    const monday = at('30 9 * * 1');
+    const tonight = at('0 18 * * *');
+    const dawn = at('0 5 * * *');
+    const paused = at('0 13 * * *', false);
+    const broken = at('0 9 1 * *');
+    const dueOne = { ...at('0 9 * * *'), lastFiredAt: new Date(now.getTime() - 5 * 86_400_000) };
+    expect(
+      nudgesUpcoming([monday, tonight, dueOne, paused, broken, dawn], [dueOne], now).map(
+        (n) => n.id,
+      ),
+    ).toEqual([tonight.id, dawn.id, monday.id]);
+    const four = [at('0 10 * * *'), at('0 11 * * *'), at('0 12 * * *'), at('0 13 * * *')];
+    expect(nudgesUpcoming(four, [], now)).toHaveLength(3);
   });
 });
