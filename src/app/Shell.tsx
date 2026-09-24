@@ -1,10 +1,16 @@
 import { Outlet } from 'react-router';
+import { useStore } from 'zustand';
 
+import { useRecentlyDeletedPurge } from '@/features/recentlyDeleted/useRecentlyDeleted';
+import { recentActionStore } from '@/features/undo/recentActionStore';
 import { UndoCapsule } from '@/features/undo/UndoCapsule';
 
 import { PrimaryNav } from './PrimaryNav';
 
 export function Shell() {
+  useRecentlyDeletedPurge();
+  // While the capsule is up on a phone it sits above the bottom bar; give the page room to scroll past it.
+  const capsuleShowing = useStore(recentActionStore, (s) => s.current !== undefined);
   return (
     <div className="min-h-dvh md:flex">
       <a
@@ -14,7 +20,10 @@ export function Shell() {
         Skip to content
       </a>
       <PrimaryNav />
-      <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-4 pt-4 pb-24 md:px-6 md:pb-8">
+      <main
+        id="main"
+        className={`mx-auto w-full max-w-3xl flex-1 px-4 pt-4 md:px-6 md:pb-8 ${capsuleShowing ? 'pb-40' : 'pb-24'}`}
+      >
         <Outlet />
       </main>
       <UndoCapsule />

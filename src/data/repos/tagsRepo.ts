@@ -184,6 +184,45 @@ export async function removeTagEverywhere(
   await batch.commit();
 }
 
+/** `mergeTagInto(_:replacement:)` by id: every reference to `id` becomes `replacementId`, then `id` is deleted. */
+export async function mergeTagIntoId(
+  db: Firestore,
+  uid: string,
+  id: string,
+  replacementId: string,
+): Promise<void> {
+  await removeTagEverywhere(db, uid, id, replacementId);
+}
+
+/**
+ * `mergeTagsRestoring(survivor:absorbed:)`: restoring a deleted tag whose name a live tag took,
+ * keeping the RESTORED spelling. One batch: every reference to the live tag is rewritten to the
+ * survivor, the live tag is deleted, and the survivor's stamp is erased.
+ */
+export async function mergeTagsRestoring(
+  db: Firestore,
+  uid: string,
+  survivorId: string,
+  absorbedId: string,
+): Promise<void> {
+  const batch = writeBatch(db);
+  for (const parent of ['tasks', 'captures'] as const) {
+    const snapshot = await getDocs(
+      query(collection(db, 'users', uid, parent), where('tag_ids', 'array-contains', absorbedId)),
+    );
+    for (const document of snapshot.docs) {
+      const parsed = idList.safeParse(document.get('tag_ids'));
+      const current = parsed.success ? parsed.data : [];
+      const next = current.filter((x) => x !== absorbedId);
+      if (!next.includes(survivorId)) next.push(survivorId);
+      batch.update(document.ref, { tag_ids: next });
+    }
+  }
+  batch.delete(doc(tagsCollection(db, uid), absorbedId));
+  batch.update(doc(tagsCollection(db, uid), survivorId), tagRestore());
+  await batch.commit();
+}
+
 /** `mergeTag(id, into: name)`: the renamed tag is absorbed; the existing tag survives. */
 export async function mergeTagInto(
   db: Firestore,

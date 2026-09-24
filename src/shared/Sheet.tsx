@@ -56,6 +56,7 @@ interface ConfirmProps {
   readonly title: string;
   readonly message: string;
   readonly confirmLabel: string;
+  readonly cancelLabel?: string;
   readonly destructive?: boolean;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
@@ -67,6 +68,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel,
+  cancelLabel = 'Cancel',
   destructive = false,
   onConfirm,
   onCancel,
@@ -82,7 +84,7 @@ export function ConfirmDialog({
           onClick={onCancel}
           className="spring min-h-11 rounded-card border border-card-border px-4 text-sm font-medium"
         >
-          Cancel
+          {cancelLabel}
         </button>
         <button
           type="button"

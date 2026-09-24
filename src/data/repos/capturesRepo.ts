@@ -1,6 +1,7 @@
 /** `captures` (`FirebaseManager+Captures.swift`, `FirebaseCaptureClientAdapter`, `+Storage`). Writes go through the payload builders only. */
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -139,6 +140,11 @@ export async function softDeleteCapture(
 
 export async function restoreCapture(db: Firestore, uid: string, id: string): Promise<void> {
   await updateDoc(captureDoc(db, uid, id), captureRestore());
+}
+
+/** The irreversible one: the launch purge and "Delete forever" only. */
+export async function hardDeleteCapture(db: Firestore, uid: string, id: string): Promise<void> {
+  await deleteDoc(captureDoc(db, uid, id));
 }
 
 // MARK: - Storage (`FirebaseManager+Storage.swift`)

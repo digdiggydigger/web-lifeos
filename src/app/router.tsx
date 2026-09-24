@@ -10,6 +10,7 @@ import { TokensPage } from '@/features/dev/TokensPage';
 import { JournalPage } from '@/features/journal/JournalPage';
 import { LifeAreaEditorDetailPage } from '@/features/lifeAreaEditor/LifeAreaEditorDetailPage';
 import { LifeAreaEditorListPage } from '@/features/lifeAreaEditor/LifeAreaEditorListPage';
+import { RecentlyDeletedPage } from '@/features/recentlyDeleted/RecentlyDeletedPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { TagEditorDetailPage } from '@/features/tagEditor/TagEditorDetailPage';
 import { TagEditorListPage } from '@/features/tagEditor/TagEditorListPage';
@@ -50,6 +51,7 @@ export const appRoutes: RouteObject[] = [
           { path: 'captures', element: <CapturesPage /> },
           { path: 'captures/:id', element: <CaptureDetailPage /> },
           { path: 'tools', element: <ToolsPage /> },
+          { path: 'tools/recently-deleted', element: <RecentlyDeletedPage /> },
           { path: 'settings', element: <SettingsPage /> },
           ...devRoutes,
           { path: '*', element: <NotFoundPage /> },
