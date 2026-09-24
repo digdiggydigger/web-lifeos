@@ -1,5 +1,7 @@
 import { Outlet } from 'react-router';
 
+import { UndoCapsule } from '@/features/undo/UndoCapsule';
+
 import { PrimaryNav } from './PrimaryNav';
 
 export function Shell() {
@@ -15,6 +17,7 @@ export function Shell() {
       <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-4 pt-4 pb-24 md:px-6 md:pb-8">
         <Outlet />
       </main>
+      <UndoCapsule />
     </div>
   );
 }

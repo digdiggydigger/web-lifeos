@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isFieldDelete } from '../fields';
 import { fromTimestamp } from '../time';
-import { tagRename, tagRestore, tagSoftDelete } from './tags';
+import { tagIdsRemove, tagIdsUnion, tagRename, tagRestore, tagSoftDelete } from './tags';
 
 const stamp = new Date(1_755_000_000_000);
 
@@ -30,5 +30,15 @@ describe('tag soft delete', () => {
 
   it('rename writes only the name', () => {
     expect(tagRename('errand')).toEqual({ name: 'errand' });
+  });
+
+  it('spells membership as tag_ids on both parents, never tagIds', () => {
+    for (const fields of [
+      tagIdsUnion('7F3C2A10-1B2C-4D5E-8F90-1234567890AB'),
+      tagIdsRemove('7F3C2A10-1B2C-4D5E-8F90-1234567890AB'),
+    ]) {
+      expect(Object.keys(fields)).toEqual(['tag_ids']);
+      expect(fields).not.toHaveProperty('tagIds');
+    }
   });
 });

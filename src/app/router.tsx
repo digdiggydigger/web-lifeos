@@ -7,6 +7,7 @@ import { CapturesPage } from '@/features/captures/CapturesPage';
 import { TokensPage } from '@/features/dev/TokensPage';
 import { JournalPage } from '@/features/journal/JournalPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { TaskDetailPage } from '@/features/tasks/TaskDetailPage';
 import { TasksPage } from '@/features/tasks/TasksPage';
 import { TodayPage } from '@/features/today/TodayPage';
 import { ToolsPage } from '@/features/tools/ToolsPage';
@@ -32,6 +33,7 @@ export const appRoutes: RouteObject[] = [
           { index: true, element: <Navigate to={HOME_PATH} replace /> },
           { path: 'today', element: <TodayPage /> },
           { path: 'tasks', element: <TasksPage /> },
+          { path: 'tasks/:id', element: <TaskDetailPage /> },
           { path: 'areas', element: <AreasPage /> },
           { path: 'journal', element: <JournalPage /> },
           { path: 'captures', element: <CapturesPage /> },
