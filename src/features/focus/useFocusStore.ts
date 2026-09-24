@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useAuth } from '@/app/auth/AuthProvider';
 import { firebase } from '@/data/firebase';
 import { signedInUser } from '@/data/store/authStore';
+import { celebrations } from '@/features/celebrations/appCelebrations';
 
 import {
   browserFocusNotifier,
@@ -24,6 +25,14 @@ export function useFocusStore(): FocusSessionStore {
         logger: firebaseFocusLogger(firebase().db, uid),
         sprintStore: localStorageFocusSprintStore(uid),
         notifier: browserFocusNotifier(),
+      });
+      // The Confirm bridge (`FocusCompletionCelebration`): every NEW confirmation stamp asks for the
+      // full-screen celebration; the one that cleared the stack earns the fireworks.
+      created.subscribe((next, previous) => {
+        const stamp = next.latestConfirmation;
+        if (stamp && stamp.ordinal !== previous.latestConfirmation?.ordinal) {
+          celebrations.request({ kind: 'confirm', clearedStack: stamp.clearedStack }, null);
+        }
       });
       void created.getState().restorePersistedSprint();
       if (typeof document !== 'undefined') {

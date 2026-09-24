@@ -751,3 +751,111 @@ describe('notes, life area, tags, counterweight', () => {
     expect(s2.getState().state).toEqual({ kind: 'loaded', captures: [waiting] });
   });
 });
+
+// Port of CaptureInboxServiceCelebrationTests: inbox zero (E's F3) on the three DOING verbs only.
+describe('inbox zero', () => {
+  async function celebrating(
+    loaded: Capture[],
+    opts: {
+      load?: boolean;
+      filters?: ('unprocessed' | 'seen' | 'promoted')[];
+      seen?: Capture[];
+    } = {},
+  ) {
+    const client = new FakeCaptureClient();
+    const journal = new FakeJournal(client.callLog);
+    client.unprocessed = loaded;
+    client.seen = opts.seen ?? [];
+    const milestones: string[] = [];
+    const store = createCaptureInboxStore(client, {
+      journalClient: journal,
+      availableFilters: opts.filters ?? ['unprocessed'],
+      celebrate: (m) => milestones.push(m),
+    });
+    if (opts.load ?? true) await store.getState().load();
+    return { client, store, milestones };
+  }
+
+  it('sorting, journalling or promoting the last waiting capture celebrates inbox zero', async () => {
+    const a = capture('the last one');
+    const sorted = await celebrating([a]);
+    await sorted.store.getState().sort(a, 'W');
+    expect(sorted.milestones).toEqual(['inboxZero']);
+
+    const b = capture('the last one');
+    const journalled = await celebrating([b]);
+    await journalled.store.getState().logToJournal(b);
+    expect(journalled.milestones).toEqual(['inboxZero']);
+
+    const c = capture('the last one');
+    const promoted = await celebrating([c]);
+    promoted.client.captureResult = c;
+    await promoted.store.getState().promoteToTask(c, undefined, 'p4', undefined);
+    expect(promoted.milestones).toEqual(['inboxZero']);
+  });
+
+  it('clearing one of two captures celebrates nothing', async () => {
+    const first = capture('first');
+    const { store, milestones } = await celebrating([first, capture('second')]);
+    await store.getState().sort(first, 'W');
+    expect(milestones).toEqual([]);
+  });
+
+  it('discarding the last capture celebrates nothing (R-a: tidying, not doing)', async () => {
+    const c = capture('not worth keeping');
+    const { store, milestones } = await celebrating([c]);
+    await store.getState().discard(c);
+    expect(store.getState().captures()).toEqual([]);
+    expect(milestones).toEqual([]);
+  });
+
+  it('sending a sorted capture back to the inbox, or promoting one already sorted, celebrates nothing', async () => {
+    const sorted = capture('sorted earlier', { seen: true });
+    const back = await celebrating([], { filters: ['seen', 'promoted'], seen: [sorted] });
+    await back.store.getState().undoSeen(sorted);
+    expect(back.milestones).toEqual([]);
+
+    const again = await celebrating([], { filters: ['seen', 'promoted'], seen: [sorted] });
+    again.client.captureResult = sorted;
+    await again.store.getState().promoteToTask(sorted, undefined, 'p4', undefined);
+    expect(again.milestones).toEqual([]);
+  });
+
+  it('a sort that failed celebrates nothing', async () => {
+    const c = capture('the last one');
+    const { client, store, milestones } = await celebrating([c]);
+    client.updateCaptureResult = fail('already processed');
+    await store.getState().sort(c, 'W');
+    expect(milestones).toEqual([]);
+  });
+
+  it('a store with no loaded list asks the server once whether the inbox is empty', async () => {
+    const c = capture('the last one');
+    const door = await celebrating([], { load: false });
+    door.client.captureResult = c;
+    await door.store.getState().promoteToTask(c, undefined, 'p4', undefined);
+    expect(door.client.callLog.filter((n) => n === 'fetchUnprocessed')).toHaveLength(1);
+    expect(door.milestones).toEqual(['inboxZero']);
+  });
+
+  it('a door whose inbox still holds something, or whose fetch failed, celebrates nothing', async () => {
+    const c = capture('the one being promoted');
+    const holding = await celebrating([capture('still waiting')], { load: false });
+    holding.client.captureResult = c;
+    await holding.store.getState().promoteToTask(c, undefined, 'p4', undefined);
+    expect(holding.milestones).toEqual([]);
+
+    const failing = await celebrating([], { load: false });
+    failing.client.unprocessed = fail('offline');
+    failing.client.captureResult = c;
+    await failing.store.getState().promoteToTask(c, undefined, 'p4', undefined);
+    expect(failing.milestones).toEqual([]);
+  });
+
+  it('a store built without a celebrate hook still clears and does not throw', async () => {
+    const c = capture('the last one');
+    const { store } = await makeSUT([c]);
+    await store.getState().sort(c, 'W');
+    expect(store.getState().captures()).toEqual([]);
+  });
+});

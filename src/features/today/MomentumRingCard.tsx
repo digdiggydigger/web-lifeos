@@ -25,6 +25,7 @@ export function MomentumRingCard(props: MomentumRingCardProps) {
     <section aria-label="Momentum" className="flex items-center gap-6 py-2">
       <div
         role="img"
+        data-momentum-ring=""
         aria-label={`${closedToday} of ${goal} closed today`}
         className="relative shrink-0"
         style={{ width: SIZE, height: SIZE }}

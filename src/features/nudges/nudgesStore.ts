@@ -59,7 +59,7 @@ export type NudgeMilestone = 'streakSeven';
 export interface NudgesStoreOptions {
   readonly notifier: NudgeNotifier;
   readonly record?: (action: RecentAction) => void;
-  /** The streak milestone's door (M2.4 draws it). */
+  /** The streak milestone's door; `useNudgesStore` hands it to the celebration centre. */
   readonly celebrate?: (milestone: NudgeMilestone) => void;
   readonly now?: () => Date;
 }

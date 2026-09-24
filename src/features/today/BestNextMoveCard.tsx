@@ -7,6 +7,8 @@ import type { LifeArea, Task } from '@/domain/types';
 import { areaClasses } from '@/features/areas/AreaWash';
 import { Card } from '@/shared/Card';
 import { SectionLabel } from '@/shared/SectionLabel';
+import type { Point } from '@/domain/celebrations';
+import { centreOf } from '@/features/celebrations/appCelebrations';
 
 interface BestNextMoveCardProps {
   readonly task: Task;
@@ -14,7 +16,8 @@ interface BestNextMoveCardProps {
   readonly isDueNow: boolean;
   readonly isClosing: boolean;
   readonly loggedTodayLabel: string | undefined;
-  readonly onClose: () => void;
+  /** Called with the pressed button's centre, where the pop leaves from. */
+  readonly onClose: (origin: Point | null) => void;
   /** Hidden while any sprint runs: this card must not offer a second one over the top. */
   readonly showsStartSession: boolean;
   readonly onStartSession: () => void;
@@ -78,7 +81,7 @@ export function BestNextMoveCard(props: BestNextMoveCardProps) {
         <button
           type="button"
           disabled={isClosing}
-          onClick={onClose}
+          onClick={(event) => onClose(centreOf(event.currentTarget))}
           className="spring flex min-h-11 w-full items-center justify-center gap-2 rounded-card bg-state-go text-base font-semibold text-on-state-go disabled:opacity-60"
         >
           <CheckCircle2 aria-hidden="true" className="size-6" />

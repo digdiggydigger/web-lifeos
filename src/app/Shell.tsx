@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router';
 import { useStore } from 'zustand';
 
+import { CelebrationLayer } from '@/features/celebrations/CelebrationLayer';
 import { FocusBar } from '@/features/focus/FocusBar';
 import { useFocusStore } from '@/features/focus/useFocusStore';
 import { useRecentlyDeletedPurge } from '@/features/recentlyDeleted/useRecentlyDeleted';
@@ -38,6 +39,7 @@ export function Shell() {
       </main>
       <UndoCapsule lifted={focusShowing} />
       <FocusBar />
+      <CelebrationLayer />
     </div>
   );
 }

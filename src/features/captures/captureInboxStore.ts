@@ -126,6 +126,8 @@ export interface CaptureInboxOptions {
   readonly availableFilters?: readonly InboxFilter[];
   readonly record?: ((action: RecentAction) => void) | undefined;
   readonly now?: () => Date;
+  /** E's F3 inbox-zero milestone; `useCaptureStores` hands it to the celebration centre. */
+  readonly celebrate?: ((milestone: 'inboxZero') => void) | undefined;
 }
 
 function taskTitle(capture: Capture): string {
@@ -182,6 +184,27 @@ export function createCaptureInboxStore(
           captures: state.captures.map((c) => (c.id === updated.id ? updated : c)),
         },
       });
+    }
+    /**
+     * `CaptureInboxService+Celebrations`: called by sort, journal and promote once the exit has
+     * landed. Silent unless this capture was genuinely waiting (unprocessed and never sorted) AND
+     * nothing is waiting now. A loaded To-triage list already knows; a store with no list asks the
+     * server once, and a fetch that FAILED is not an empty inbox.
+     */
+    async function celebrateIfInboxCleared(capture: Capture): Promise<void> {
+      if (!options.celebrate || capture.processed || capture.seen === true) return;
+      const { filter, state } = get();
+      let empty: boolean;
+      if (filter === 'unprocessed' && state.kind === 'loaded') {
+        empty = state.captures.length === 0;
+      } else {
+        try {
+          empty = (await client.fetchUnprocessedCaptures()).length === 0;
+        } catch {
+          return;
+        }
+      }
+      if (empty) options.celebrate('inboxZero');
     }
     async function refreshInactiveCounts(): Promise<void> {
       for (const inactive of availableFilters) {
@@ -473,6 +496,7 @@ export function createCaptureInboxStore(
             pendingTaskIdsByCapture.delete(capture.id);
             removeCapture(capture.id);
             await refreshInactiveCounts();
+            await celebrateIfInboxCleared(capture);
             return true;
           } catch {
             pendingTaskIdsByCapture.set(capture.id, taskId);
@@ -493,6 +517,7 @@ export function createCaptureInboxStore(
           });
           removeCapture(capture.id);
           await refreshInactiveCounts();
+          await celebrateIfInboxCleared(capture);
           recordAction(
             { kind: 'sorted', captureId: capture.id, previousLifeAreaId: capture.lifeAreaId },
             'captureSorted',
@@ -556,6 +581,7 @@ export function createCaptureInboxStore(
           await client.markProcessed(capture.id);
           removeCapture(capture.id);
           await refreshInactiveCounts();
+          await celebrateIfInboxCleared(capture);
           recordAction(
             { kind: 'journaled', captureId: capture.id, logId: entry.id },
             'captureJournalled',

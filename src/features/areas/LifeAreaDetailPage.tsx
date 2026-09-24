@@ -22,6 +22,8 @@ import { areaClasses } from './AreaWash';
 import { createLifeAreaDetailStore } from './lifeAreaDetailStore';
 import { useAreaClients } from './useAreaClients';
 import { useLifeAreas } from './useLifeAreas';
+import type { Point } from '@/domain/celebrations';
+import { celebrations } from '@/features/celebrations/appCelebrations';
 
 /** `LifeAreaDetailView`: wash header, Tasks / Journal / Captures / All chips, the ring line, and "Add to {area}". */
 export function LifeAreaDetailPage() {
@@ -54,13 +56,15 @@ export function LifeAreaDetailPage() {
     all: openCount + logs.length + captures.length,
   };
 
-  function close(task: Task) {
+  function close(task: Task, origin: Point | null) {
     recentActionStore.getState().record({
       kind: 'taskClosed',
       subject: task.title,
       undo: () => store.getState().reopenTask(task),
     });
     void store.getState().closeTask(task);
+    // E's F6: the in-place pop from the control that closed it, at the tap as on iOS.
+    celebrations.request({ kind: 'pop' }, origin);
   }
 
   if (areasState.kind === 'ready' && !area) {

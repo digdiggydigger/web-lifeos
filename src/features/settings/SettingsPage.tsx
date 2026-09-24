@@ -144,6 +144,18 @@ export function SettingsPage() {
           one-tap start begins for a task with no plan of its own — a task's saved plan always wins.
         </p>
       </Card>
+      <SectionLabel className="mt-6 mb-2">Feedback</SectionLabel>
+      <Card className="flex flex-col">
+        <Toggle label="Celebrations" prefKey="celebrationsEnabled" />
+        <Toggle label="Celebration sounds" prefKey="celebrationSoundsEnabled" />
+        <p className="mt-2 text-xs text-label-tertiary">
+          Celebrations covers every full-screen moment — the confetti when you confirm a finished
+          sprint, and the milestones for clearing your inbox, a seven-day streak and hitting your
+          daily goal; the small in-place flourishes are left alone either way. Celebration sounds
+          adds one soft chime to those moments, and only after you have clicked or typed somewhere
+          on the page, as browsers require.
+        </p>
+      </Card>
       <SectionLabel className="mt-6 mb-2">Appearance</SectionLabel>
       <Card>
         <fieldset>

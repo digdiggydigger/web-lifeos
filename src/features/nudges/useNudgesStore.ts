@@ -4,6 +4,7 @@ import { useAuth } from '@/app/auth/AuthProvider';
 import { firebase } from '@/data/firebase';
 import { signedInUser } from '@/data/store/authStore';
 import { markHasHadNudges } from '@/domain/nudges';
+import { celebrations } from '@/features/celebrations/appCelebrations';
 import { recentActionStore } from '@/features/undo/recentActionStore';
 
 import { browserNudgeNotifier, firebaseNudgesClient } from './nudgesClient';
@@ -29,6 +30,8 @@ export function useNudgesStore(): NudgesStore {
       const created = createNudgesStore(firebaseNudgesClient(firebase().db, uid), {
         notifier: browserNudgeNotifier(),
         record: (action) => recentActionStore.getState().record(action),
+        // R-b: the seventh consecutive Done for now. The site already has its own feedback.
+        celebrate: (milestone) => celebrations.request({ kind: 'milestone', milestone }, null),
       });
       // The first-run marker latches on every appearance and every change; it only ever suppresses the door.
       created.subscribe((s) => {

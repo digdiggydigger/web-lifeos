@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import type { StoreApi } from 'zustand/vanilla';
 
@@ -7,6 +7,7 @@ import { effortLabel } from '@/domain/momentum/momentumScoreboard';
 import { addDays, isSameDay, startOfDay } from '@/domain/time/calendar';
 import { TASK_PRIORITIES } from '@/domain/types';
 import type { Capture, TaskPriority } from '@/domain/types';
+import { celebrations } from '@/features/celebrations/appCelebrations';
 import { toDateTimeLocal } from '@/features/tasks/TaskCreateDialog';
 import { Card } from '@/shared/Card';
 import { fieldClass, primaryButtonClass } from '@/shared/Chips';
@@ -44,6 +45,16 @@ export function PromoteSheet({
   const [promoted, setPromoted] = useState(false);
   const now = new Date();
   const dueIs = (days: number) => dueDate !== undefined && isSameDay(dueDate, addDays(now, days));
+  const open = capture !== undefined;
+
+  // The sheet closes ITSELF after a promote, so an inbox-zero celebration earned here is held by the
+  // centre until it has gone (`CelebrationSurface.promoteSheet`). If the `<dialog>` is still open at
+  // the instant this cleanup runs, the centre's hold watch releases the burst once it has closed.
+  useEffect(() => {
+    if (!open) return;
+    celebrations.surfacePresented('promoteSheet');
+    return () => celebrations.surfaceDismissed('promoteSheet');
+  }, [open]);
 
   async function promote() {
     if (!capture || busy) return;
@@ -57,7 +68,7 @@ export function PromoteSheet({
   }
 
   return (
-    <Sheet open={capture !== undefined} title="Make a task" onClose={onClose}>
+    <Sheet open={open} title="Make a task" onClose={onClose}>
       {capture ? (
         <div className="flex flex-col gap-6">
           <div>

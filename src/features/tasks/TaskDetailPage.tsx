@@ -1,5 +1,6 @@
 import { Play } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useStore } from 'zustand';
 
@@ -32,6 +33,7 @@ import { SectionLabel } from '@/shared/SectionLabel';
 import { toDateTimeLocal } from './TaskCreateDialog';
 import { createTaskDetailStore } from './taskDetailStore';
 import { useTaskClients } from './useTaskClients';
+import { celebrations, centreOf } from '@/features/celebrations/appCelebrations';
 
 const fieldClass =
   'min-h-11 w-full rounded-card border border-card-border bg-card-surface-secondary px-4 py-2 text-base';
@@ -166,11 +168,14 @@ export function TaskDetailPage() {
       setTimeout(() => setSaved(false), 2000);
     }
   }
-  function closeTask() {
+  function closeTask(event: MouseEvent<HTMLButtonElement>) {
+    const origin = centreOf(event.currentTarget);
     recentActionStore
       .getState()
       .record({ kind: 'taskClosed', subject: task!.title, undo: () => store.getState().reopen() });
     void store.getState().close();
+    // E's F6: the pop from the close button; drawn on the root layer so nothing clips it.
+    celebrations.request({ kind: 'pop' }, origin);
   }
   async function deleteTask() {
     if (!(await store.getState().softDelete())) return;

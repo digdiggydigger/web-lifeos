@@ -6,12 +6,15 @@ import { Link } from 'react-router';
 import { effortLabel } from '@/domain/momentum/momentumScoreboard';
 import { rubberBanded, swipeCloses, taskAccessibilityLabel, taskMetaLine } from '@/domain/tasks';
 import type { LifeArea, Task } from '@/domain/types';
+import type { Point } from '@/domain/celebrations';
+import { centreOf } from '@/features/celebrations/appCelebrations';
 
 interface TaskRowProps {
   readonly task: Task;
   readonly lifeArea: LifeArea | undefined;
   readonly now: Date;
-  readonly onClose: (task: Task) => void;
+  /** `origin` is the pressed control's centre, where the celebration pop leaves from. */
+  readonly onClose: (task: Task, origin: Point | null) => void;
   /** The row's sprint launch (`taskStartFocus-…`); absent where a sprint cannot start from here. */
   readonly onStartFocus?: ((task: Task) => void) | undefined;
 }
@@ -46,7 +49,7 @@ export function TaskRow({ task, lifeArea, now, onClose, onStartFocus }: TaskRowP
     if (!s?.active) return;
     const dx = event.clientX - s.x;
     setOffset(0);
-    if (swipeCloses(dx)) onClose(task);
+    if (swipeCloses(dx)) onClose(task, centreOf(event.currentTarget));
   }
 
   return (
@@ -111,7 +114,7 @@ export function TaskRow({ task, lifeArea, now, onClose, onStartFocus }: TaskRowP
             <button
               type="button"
               aria-label="Close task"
-              onClick={() => onClose(task)}
+              onClick={(event) => onClose(task, centreOf(event.currentTarget))}
               className="spring flex size-11 shrink-0 items-center justify-center text-label-tertiary hover:text-state-go"
             >
               <Circle aria-hidden="true" className="size-6" />

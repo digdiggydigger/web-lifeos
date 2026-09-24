@@ -20,13 +20,16 @@ import {
   streak,
   trailingWeekClosureFlags,
 } from '@/domain/momentum';
+import { hasCelebratedToday, markCelebratedToday } from '@/domain/celebrations';
+import type { Point } from '@/domain/celebrations';
 import { planForTask } from '@/domain/focus';
 import { startOfDay } from '@/domain/time/calendar';
 import type { Task } from '@/domain/types';
+import { celebrations, centreOf } from '@/features/celebrations/appCelebrations';
 import { FocusAnalyticsSection } from '@/features/focus/FocusAnalyticsSection';
 import { useFocusStore } from '@/features/focus/useFocusStore';
 import { nudgesOf } from '@/features/nudges/nudgesStore';
-import { useNudgesStore } from '@/features/nudges/useNudgesStore';
+import { useNudgesStore, useUid } from '@/features/nudges/useNudgesStore';
 import { preferencesStore } from '@/features/settings/preferencesStore';
 import { recentActionStore } from '@/features/undo/recentActionStore';
 import { EmptyState } from '@/shared/EmptyState';
@@ -44,6 +47,14 @@ import {
   WeekReviewRow,
 } from './TodayCards';
 import { useHomeStore } from './useHomeStore';
+
+function localStorageOrNothing(): Storage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}
 
 function Notice({
   title,
@@ -97,6 +108,7 @@ export function TodayPage() {
   const seenSprintCount = useRef(completedSprintCount);
   const tracker = useRef(createDailyGoalTracker());
   const [announcement, setAnnouncement] = useState('');
+  const uid = useUid();
   const now = new Date();
 
   const active = activeAreas(lifeAreas);
@@ -133,8 +145,22 @@ export function TodayPage() {
       },
       settled,
     );
-    if (crossed) setAnnouncement(dailyGoalAnnouncement(ringCount, prefs.dailyGoal));
-  }, [ringCount, settled, prefs.dailyGoal, prefs.countClearedCaptures, prefs.countNudges]);
+    // `HomeView+DailyGoal.observeDailyGoal`: once per day per account (F7), the day marked BEFORE
+    // the request so an undo-and-recross never replays it. No uid, nothing to key on: nothing fires.
+    if (
+      !crossed ||
+      uid === '' ||
+      hasCelebratedToday('dailyGoal', uid, new Date(), localStorageOrNothing())
+    )
+      return;
+    markCelebratedToday('dailyGoal', uid, new Date(), localStorageOrNothing());
+    celebrations.request(
+      { kind: 'milestone', milestone: 'dailyGoal' },
+      centreOf(document.querySelector('[data-momentum-ring]')),
+    );
+    // The one milestone that announces itself; posted after the request, as on iOS.
+    setAnnouncement(dailyGoalAnnouncement(ringCount, prefs.dailyGoal));
+  }, [ringCount, settled, prefs.dailyGoal, prefs.countClearedCaptures, prefs.countNudges, uid]);
 
   // Every finished sprint refetches the history the charts and the logged-today chip read.
   useEffect(() => {
@@ -143,7 +169,10 @@ export function TodayPage() {
     void store.getState().load();
   }, [completedSprintCount, store]);
 
-  async function closeTask(task: Task): Promise<void> {
+  async function closeTask(task: Task, origin: Point | null): Promise<void> {
+    // E's F6: the pop leaves from the pressed control at the tap, as on iOS, so it always precedes
+    // the daily-goal milestone the same close may cross.
+    celebrations.request({ kind: 'pop' }, origin);
     if (!(await store.getState().close(task))) return;
     recentActionStore.getState().record({
       kind: 'taskClosed',
@@ -215,7 +244,7 @@ export function TodayPage() {
                 }
                 isClosing={closingTaskId === headline.id}
                 loggedTodayLabel={focusLoggedTodayLabel(focusSessions, headline.id, now)}
-                onClose={() => void closeTask(headline)}
+                onClose={(origin) => void closeTask(headline, origin)}
                 showsStartSession={activeSprint === undefined}
                 onStartSession={() =>
                   focus

@@ -24,6 +24,8 @@ import { TaskCreateDialog } from './TaskCreateDialog';
 import { TaskRow } from './TaskRow';
 import { createTasksStore } from './tasksStore';
 import { useTaskClients } from './useTaskClients';
+import type { Point } from '@/domain/celebrations';
+import { celebrations } from '@/features/celebrations/appCelebrations';
 
 const toneClass: Record<HeaderTone, string> = {
   'state-warn': 'text-state-warn',
@@ -57,13 +59,15 @@ export function TasksPage() {
     void store.getState().load();
   }, [store]);
 
-  function close(task: Task) {
+  function close(task: Task, origin: Point | null) {
     recentActionStore.getState().record({
       kind: 'taskClosed',
       subject: task.title,
       undo: () => store.getState().reopen(task),
     });
     void store.getState().close(task);
+    // E's F6: the in-place pop from the control that closed it, at the tap as on iOS.
+    celebrations.request({ kind: 'pop' }, origin);
   }
 
   const areaById = new Map(lifeAreas.map((a) => [a.id, a]));

@@ -4,6 +4,7 @@ import type { StoreApi } from 'zustand/vanilla';
 import { useAuth } from '@/app/auth/AuthProvider';
 import { firebase } from '@/data/firebase';
 import { signedInUser } from '@/data/store/authStore';
+import { celebrations } from '@/features/celebrations/appCelebrations';
 import { firebaseJournalClient } from '@/features/journal/journalClient';
 import { recentActionStore } from '@/features/undo/recentActionStore';
 
@@ -33,6 +34,7 @@ export function useCaptureStores(): CaptureStores {
           journalClient: firebaseJournalClient(db, uid),
           availableFilters: ['unprocessed', 'seen', 'promoted'],
           record: (action) => recentActionStore.getState().record(action),
+          celebrate: (milestone) => celebrations.request({ kind: 'milestone', milestone }, null),
         }),
       };
       stores.set(uid, existing);
