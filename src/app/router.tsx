@@ -11,6 +11,7 @@ import { TasksPage } from '@/features/tasks/TasksPage';
 import { TodayPage } from '@/features/today/TodayPage';
 import { ToolsPage } from '@/features/tools/ToolsPage';
 
+import { PublicOnly, RequireAuth } from './auth/AuthGate';
 import { NotFoundPage } from './NotFoundPage';
 import { HOME_PATH } from './routes';
 import { Shell } from './Shell';
@@ -20,21 +21,26 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
   : [];
 
 export const appRoutes: RouteObject[] = [
-  { path: '/login', element: <LoginPage /> },
+  { element: <PublicOnly />, children: [{ path: '/login', element: <LoginPage /> }] },
   {
-    path: '/',
-    element: <Shell />,
+    element: <RequireAuth />,
     children: [
-      { index: true, element: <Navigate to={HOME_PATH} replace /> },
-      { path: 'today', element: <TodayPage /> },
-      { path: 'tasks', element: <TasksPage /> },
-      { path: 'areas', element: <AreasPage /> },
-      { path: 'journal', element: <JournalPage /> },
-      { path: 'captures', element: <CapturesPage /> },
-      { path: 'tools', element: <ToolsPage /> },
-      { path: 'settings', element: <SettingsPage /> },
-      ...devRoutes,
-      { path: '*', element: <NotFoundPage /> },
+      {
+        path: '/',
+        element: <Shell />,
+        children: [
+          { index: true, element: <Navigate to={HOME_PATH} replace /> },
+          { path: 'today', element: <TodayPage /> },
+          { path: 'tasks', element: <TasksPage /> },
+          { path: 'areas', element: <AreasPage /> },
+          { path: 'journal', element: <JournalPage /> },
+          { path: 'captures', element: <CapturesPage /> },
+          { path: 'tools', element: <ToolsPage /> },
+          { path: 'settings', element: <SettingsPage /> },
+          ...devRoutes,
+          { path: '*', element: <NotFoundPage /> },
+        ],
+      },
     ],
   },
 ];

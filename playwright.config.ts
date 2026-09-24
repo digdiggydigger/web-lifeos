@@ -18,7 +18,7 @@ export default defineConfig({
     ...(executablePath ? { launchOptions: { executablePath } } : {}),
   },
   webServer: {
-    command: `npm run dev -- --port ${port} --strictPort`,
+    command: `npm run dev:emulator -- --port ${port} --strictPort`,
     url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
   },

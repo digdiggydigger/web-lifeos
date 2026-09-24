@@ -6,6 +6,8 @@ import { Card } from '@/shared/Card';
 import { PageHeader } from '@/shared/PageHeader';
 import { SectionLabel } from '@/shared/SectionLabel';
 
+import { AccountSection } from './AccountSection';
+
 export function SettingsPage() {
   const [appearance, setLocal] = useState<Appearance>(() => readAppearance());
 
@@ -44,6 +46,7 @@ export function SettingsPage() {
           System follows your device. The palette carries light and dark variants for every token.
         </p>
       </Card>
+      <AccountSection />
     </>
   );
 }

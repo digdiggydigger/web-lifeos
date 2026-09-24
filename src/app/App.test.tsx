@@ -1,14 +1,35 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import type { AuthClient, AuthUser } from '@/data/auth/authClient';
+import { createAuthStore } from '@/data/store/authStore';
+
+import { AuthProvider } from './auth/AuthProvider';
 import { appRoutes } from './router';
 import { TABS } from './routes';
 
-function renderAt(path: string) {
+class StubAuthClient implements AuthClient {
+  constructor(private readonly restored: AuthUser | null) {}
+  subscribe(onChange: (user: AuthUser | null) => void) {
+    onChange(this.restored);
+    return () => undefined;
+  }
+  signIn = () => Promise.reject(new Error('not in this test'));
+  signUp = () => Promise.reject(new Error('not in this test'));
+  sendPasswordReset = () => Promise.resolve();
+  updateDisplayName = () => Promise.reject(new Error('not in this test'));
+  signOut = () => Promise.resolve();
+}
+
+function renderAt(path: string, user: AuthUser | null = { uid: 'U1', email: 'e@example.com' }) {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(
+    <AuthProvider store={createAuthStore(new StubAuthClient(user))}>
+      <RouterProvider router={router} />
+    </AuthProvider>,
+  );
   return router;
 }
 
@@ -52,9 +73,21 @@ describe('shell', () => {
   });
 
   it('keeps login outside the shell', async () => {
-    renderAt('/login');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeInTheDocument();
+    renderAt('/login', null);
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'ADHD LifeOS' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary' })).not.toBeInTheDocument();
+  });
+
+  it('sends a signed-out visitor to login and a signed-in visitor away from it', async () => {
+    const out = renderAt('/journal', null);
+    await screen.findByRole('heading', { level: 1, name: 'ADHD LifeOS' });
+    expect(out.state.location.pathname).toBe('/login');
+    cleanup();
+    const back = renderAt('/login');
+    await screen.findByRole('heading', { level: 1, name: 'Today' });
+    expect(back.state.location.pathname).toBe('/today');
   });
 });
 
