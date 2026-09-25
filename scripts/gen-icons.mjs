@@ -2,6 +2,7 @@
 // Usage: node scripts/gen-icons.mjs "<path to AppIcon-1024.png>"
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
 const [source] = process.argv.slice(2);
@@ -9,7 +10,7 @@ if (!source) {
   console.error('usage: node scripts/gen-icons.mjs <AppIcon-1024.png>');
   process.exit(1);
 }
-const outDir = new URL('../public/icons/', import.meta.url).pathname;
+const outDir = fileURLToPath(new URL('../public/icons/', import.meta.url));
 mkdirSync(outDir, { recursive: true });
 
 const plain = [

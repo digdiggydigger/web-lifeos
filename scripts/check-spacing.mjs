@@ -3,8 +3,9 @@
 // steps 0.5, 1.5, 2.5, 3 (12px), 3.5, 5 (20px) and arbitrary pixel values are not.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('../src/', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../src/', import.meta.url));
 const PROPS =
   '(?:p|px|py|pt|pr|pb|pl|ps|pe|m|mx|my|mt|mr|mb|ml|ms|me|gap|gap-x|gap-y|space-x|space-y)';
 const BANNED_STEPS = '(?:0\\.5|1\\.5|2\\.5|3|3\\.5|5)';
